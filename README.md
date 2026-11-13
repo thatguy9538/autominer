@@ -1,12 +1,13 @@
 # Auto Miner — Fabric mod for Minecraft 1.21.10
 
-Pick a block type, and the mod automatically mines every block of that type
-that is within your reach and that you can see.
+Pick one or more block types, and the mod automatically mines every block of
+those types that is within your reach and that you can see.
 
 ## Controls
 | Key | Action |
 |-----|--------|
-| **G** | Select the block you're looking at as the target |
+| **G** | Add the block you're looking at to the target list (press again to remove it) |
+| **J** | Clear the target list |
 | **H** | Turn auto-mining on / off |
 
 Rebind them in **Options → Controls → Key Binds → Auto Miner**.
@@ -30,12 +31,12 @@ gradlew.bat build
 ```
 
 The first build downloads Minecraft and Fabric, so it can take a few minutes.
-The mod jar ends up at **`build/libs/autominer-1.0.0.jar`**. Ignore the `-sources` jar.
+The mod jar ends up at **`build/libs/autominer-1.1.0.jar`**. Ignore the `-sources` jar.
 
 ## Install it
 1. Install the **Fabric Loader** for 1.21.10: https://fabricmc.net/use/installer/
 2. Put **Fabric API** for 1.21.10 in your `.minecraft/mods` folder: https://modrinth.com/mod/fabric-api
-3. Put `autominer-1.0.0.jar` in the same `mods` folder.
+3. Put `autominer-1.1.0.jar` in the same `mods` folder.
 4. Launch the game with the Fabric 1.21.10 profile.
 
 To test without installing, run `gradlew runClient`.

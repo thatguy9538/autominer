@@ -1,5 +1,6 @@
 {
   "key.category.autominer.main": "Auto Miner",
-  "key.autominer.select": "Select Target Block",
-  "key.autominer.toggle": "Toggle Auto Mining"
+  "key.autominer.select": "Add / Remove Target Block",
+  "key.autominer.toggle": "Toggle Auto Mining",
+  "key.autominer.clear": "Clear Target Blocks"
 }

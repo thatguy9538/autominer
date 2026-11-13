@@ -22,13 +22,17 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 /**
  * Auto Miner (Fabric, Minecraft 1.21.10)
  *
- * Pick a block type, then the mod automatically mines every block of that
- * type that is within your reach and that you can see.
+ * Pick one or more block types, then the mod automatically mines every block
+ * of those types that is within your reach and that you can see.
  *
- *   G = select the block you are looking at as the target
+ *   G = add / remove the block you are looking at from the target list
+ *   J = clear the target list
  *   H = turn auto-mining on / off
  *
  * Both keys can be changed in Options > Controls > Key Binds > Auto Miner.
@@ -43,8 +47,9 @@ public class AutoMinerClient implements ClientModInitializer {
 
     private static KeyBinding selectKey;
     private static KeyBinding toggleKey;
+    private static KeyBinding clearKey;
 
-    private static Block targetBlock = null;
+    private static final Set<Block> targets = new LinkedHashSet<>();
     private static boolean enabled = false;
     private static BlockPos currentPos = null;
     private static Direction currentSide = Direction.UP;
@@ -55,6 +60,8 @@ public class AutoMinerClient implements ClientModInitializer {
                 "key.autominer.select", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY));
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.autominer.toggle", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY));
+        clearKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.autominer.clear", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_J, CATEGORY));
 
         ClientTickEvents.END_CLIENT_TICK.register(AutoMinerClient::onTick);
     }
@@ -77,19 +84,34 @@ public class AutoMinerClient implements ClientModInitializer {
                 if (state.getHardness(world, pos) < 0) {
                     say(client, Text.literal("That block can't be mined.").formatted(Formatting.RED));
                 } else {
-                    targetBlock = state.getBlock();
+                    Block block = state.getBlock();
+                    boolean added = targets.add(block);
+                    if (!added) targets.remove(block);
+                    if (currentPos != null) client.interactionManager.cancelBlockBreaking();
                     currentPos = null;
-                    say(client, Text.literal("Auto Miner target: ").formatted(Formatting.YELLOW)
-                            .append(targetBlock.getName().copy().formatted(Formatting.WHITE)));
+                    say(client, Text.literal(added ? "Added: " : "Removed: ")
+                            .formatted(added ? Formatting.GREEN : Formatting.RED)
+                            .append(block.getName().copy().formatted(Formatting.WHITE))
+                            .append(Text.literal("  (" + targets.size() + " block type"
+                                    + (targets.size() == 1 ? "" : "s") + ")").formatted(Formatting.GRAY)));
                 }
             } else {
                 say(client, Text.literal("Look at a block to select it.").formatted(Formatting.RED));
             }
         }
 
+        // --- Clear list ---
+        while (clearKey.wasPressed()) {
+            targets.clear();
+            if (currentPos != null) client.interactionManager.cancelBlockBreaking();
+            currentPos = null;
+            enabled = false;
+            say(client, Text.literal("Auto Miner: target list cleared").formatted(Formatting.YELLOW));
+        }
+
         // --- Toggle on/off ---
         while (toggleKey.wasPressed()) {
-            if (targetBlock == null) {
+            if (targets.isEmpty()) {
                 say(client, Text.literal("Select a block first (G).").formatted(Formatting.RED));
                 continue;
             }
@@ -100,11 +122,10 @@ public class AutoMinerClient implements ClientModInitializer {
                     .append(enabled
                             ? Text.literal("ON").formatted(Formatting.GREEN)
                             : Text.literal("OFF").formatted(Formatting.RED))
-                    .append(Text.literal(" (" + targetBlock.getName().getString() + ")")
-                            .formatted(Formatting.GRAY)));
+                    .append(Text.literal(" (" + targetNames() + ")").formatted(Formatting.GRAY)));
         }
 
-        if (!enabled || targetBlock == null) return;
+        if (!enabled || targets.isEmpty()) return;
         if (client.currentScreen != null) return; // pause while a menu/inventory is open
         if (player.isSpectator()) return;
 
@@ -139,7 +160,7 @@ public class AutoMinerClient implements ClientModInitializer {
             for (int y = -r; y <= r; y++) {
                 for (int z = -r; z <= r; z++) {
                     pos.set(center.getX() + x, center.getY() + y, center.getZ() + z);
-                    if (!world.getBlockState(pos).isOf(targetBlock)) continue;
+                    if (!isTarget(world.getBlockState(pos))) continue;
                     double d = eye.squaredDistanceTo(Vec3d.ofCenter(pos));
                     if (d >= bestDist) continue;
                     BlockPos candidate = pos.toImmutable();
@@ -163,7 +184,7 @@ public class AutoMinerClient implements ClientModInitializer {
      */
     private static Direction visibleFace(MinecraftClient client, ClientWorld world, Vec3d eye, BlockPos pos) {
         ClientPlayerEntity player = client.player;
-        if (!world.getBlockState(pos).isOf(targetBlock)) return null;
+        if (!isTarget(world.getBlockState(pos))) return null;
         if (!player.canInteractWithBlockAt(pos, 0.0)) return null; // same reach check the server uses
 
         Vec3d c = Vec3d.ofCenter(pos);
@@ -183,6 +204,19 @@ public class AutoMinerClient implements ClientModInitializer {
             }
         }
         return null;
+    }
+
+    private static boolean isTarget(BlockState state) {
+        return targets.contains(state.getBlock());
+    }
+
+    private static String targetNames() {
+        StringBuilder sb = new StringBuilder();
+        for (Block b : targets) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(b.getName().getString());
+        }
+        return sb.toString();
     }
 
     private static void say(MinecraftClient client, Text msg) {
