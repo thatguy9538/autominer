@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "autominer",
+  "id": "crosshairaim",
   "version": "${version}",
-  "name": "Auto Miner",
-  "description": "Pick a block type and automatically mine every block of that type within your reach. G = select block, H = toggle.",
+  "name": "Crosshair Aim",
+  "description": "Type /aim <x> <y> to point your crosshair exactly at a yaw (x) and pitch (y).",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["com.example.autominer.AutoMinerClient"]
+    "client": ["com.example.crosshairaim.CrosshairAimClient"]
   },
   "depends": {
     "fabricloader": ">=0.17.0",

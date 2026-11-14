@@ -1,4 +1,4 @@
-name: Build Auto Miner
+name: Build Crosshair Aim
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
-          name: autominer-fabric-1.21.10
+          name: crosshairaim-fabric-1.21.10
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
@@ -37,7 +37,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           mkdir -p /tmp/out
-          cp build/libs/autominer-*.jar /tmp/out/
+          cp build/libs/*.jar /tmp/out/
           rm -f /tmp/out/*-sources.jar
           cd /tmp/out
           git init -q -b builds
