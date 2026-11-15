@@ -10,11 +10,16 @@ Build a walking program out of Scratch-style blocks, then run it.
 | `/walk edit`, `/walk run`, `/walk stop` | Same, from chat |
 
 ## The block editor
-* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
+* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `stop at x [0] z [0]`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
 * **set angle x [0] y [0]** turns you to face an exact direction, like the F3 "Facing" numbers.
   x = left/right (0 south, 90 west, 180 north, -90 east); y = up/down (-90 up, 0 level, 90 down).
   Because walk directions are relative to where you look, use it to point yourself before walking.
   Click = +1°, right-click = -1°, Shift = 10°, or scroll.
+* **stop at x [0] z [0]** stops the whole program as soon as you step onto that block.
+  x and z are the first and third numbers of "XYZ" on the F3 screen (y is height, so it's ignored).
+  It works wherever you put it in the script, and you can use more than one.
+  When you drag it out of the palette, it fills in the spot you're standing on.
+  If you start the program while standing on the spot, it only stops once you come back to it.
 * **random wait** pauses for a different random time (to the nearest 0.1 s) between the two numbers every time it runs. On it, a click changes the number by 0.1 s and Shift + click by 1 s.
 * **Drag** blocks from the left palette into the orange **repeat** block, and drag them up or down to reorder them.
 * **Drag a block back to the palette** to delete it.
@@ -30,4 +35,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-2.3.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-2.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

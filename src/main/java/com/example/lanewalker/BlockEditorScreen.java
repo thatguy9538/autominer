@@ -55,6 +55,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.SET_ANGLE, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
+            new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
     };
 
     private static final String[] BUTTONS = {"▶ Run", "■ Stop", "Reset", "Done"};
@@ -159,7 +160,14 @@ public class BlockEditorScreen extends Screen {
             case NUM2 -> changeAmount2(p.steps.get(hit.index), sign * step);
             case REPEAT -> changeRepeats(sign * step);
             case PALETTE -> {
-                if (leftDown) startDrag(TEMPLATES[hit.index].copy(), hit, mx, my);
+                if (leftDown) {
+                    Program.Step s = TEMPLATES[hit.index].copy();
+                    if (s.kind == Program.Kind.STOP_AT && client.player != null) {   // start at your spot
+                        s.amount = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+                        s.amount2 = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+                    }
+                    startDrag(s, hit, mx, my);
+                }
             }
             case BLOCK -> {
                 if (leftDown) startDrag(p.steps.remove(hit.index), hit, mx, my);
@@ -194,7 +202,9 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount(Program.Step s, int delta) {
-        if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
+        if (s.kind == Program.Kind.STOP_AT) {
+            s.amount = Program.clamp(s.amount + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
+        } else if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
             int v = s.amount + delta;
             while (v > 180) v -= 360;
             while (v < -180) v += 360;
@@ -208,6 +218,10 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount2(Program.Step s, int delta) {
+        if (s.kind == Program.Kind.STOP_AT) {
+            s.amount2 = Program.clamp(s.amount2 + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
+            return;
+        }
         if (s.kind == Program.Kind.SET_ANGLE) {            // pitch: -90 up .. 90 down
             s.amount2 = Program.clamp(s.amount2 + delta, -90, 90);
             return;
@@ -475,6 +489,9 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case STOP_AT -> List.of(new Seg(SegType.LABEL, "stop at x"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)));
             case SET_ANGLE -> List.of(new Seg(SegType.LABEL, "set angle x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)));

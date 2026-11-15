@@ -54,6 +54,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int cooldown = 0;
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
+    private static boolean wasAtStopSpot = false;
     private static final java.util.Random RANDOM = new java.util.Random();
 
     @Override
@@ -108,6 +109,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         running = true;
         tripsDone = 0;
+        wasAtStopSpot = atStopSpot(client.player) != null;   // only stop when you *arrive* at a spot
         startStep(client, 0);
     }
 
@@ -182,10 +184,23 @@ public class LaneWalkerClient implements ClientModInitializer {
         if (client.currentScreen != null) return; // don't walk while a menu is open
         if (stepIndex >= program.steps.size()) stepIndex = 0;
 
+        // "stop at x z" blocks are checked every tick, wherever they are in the script
+        Program.Step spot = atStopSpot(player);
+        if (spot != null && !wasAtStopSpot) {
+            stop(client, "reached x " + spot.amount + " z " + spot.amount2 + ", stopped");
+            return;
+        }
+        wasAtStopSpot = spot != null;
+
         Program.Step step = program.steps.get(stepIndex);
         Program.Dir walkDir = null;
 
         switch (step.kind) {
+            case STOP_AT -> {                 // nothing to do in order; it's checked every tick above
+                if (!advance(client)) return;
+                Program.Step now = program.steps.get(stepIndex);
+                walkDir = now.kind.isWalk() ? now.dir : null;
+            }
             case SET_ANGLE -> {
                 float yaw = MathHelper.wrapDegrees((float) step.amount);
                 float pitch = MathHelper.clamp((float) step.amount2, -90f, 90f);
@@ -194,7 +209,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                 player.setHeadYaw(yaw);
                 if (!advance(client)) return;
                 Program.Step now = program.steps.get(stepIndex);
-                walkDir = now.kind.isWait() || now.kind == Program.Kind.SET_ANGLE ? null : now.dir;
+                walkDir = now.kind.isWalk() ? now.dir : null;
             }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
@@ -214,7 +229,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (done) {
                         if (!advance(client)) return;
                         Program.Step now = program.steps.get(stepIndex);
-                        walkDir = now.kind.isWait() || now.kind == Program.Kind.SET_ANGLE ? null : now.dir;
+                        walkDir = now.kind.isWalk() ? now.dir : null;
                     }
                 }
             }
@@ -225,6 +240,15 @@ public class LaneWalkerClient implements ClientModInitializer {
         o.backKey.setPressed(walkDir == Program.Dir.BACK);
         o.leftKey.setPressed(walkDir == Program.Dir.LEFT);
         o.rightKey.setPressed(walkDir == Program.Dir.RIGHT);
+    }
+
+    /** The "stop at" block whose spot the player is standing on, or null. */
+    private static Program.Step atStopSpot(ClientPlayerEntity player) {
+        int bx = MathHelper.floor(player.getX()), bz = MathHelper.floor(player.getZ());
+        for (Program.Step s : program.steps) {
+            if (s.kind == Program.Kind.STOP_AT && s.amount == bx && s.amount2 == bz) return s;
+        }
+        return null;
     }
 
     static void say(MinecraftClient client, Text msg) {
