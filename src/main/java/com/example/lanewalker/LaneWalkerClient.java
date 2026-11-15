@@ -53,6 +53,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int cooldown = 0;
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
+    private static final java.util.Random RANDOM = new java.util.Random();
 
     @Override
     public void onInitializeClient() {
@@ -120,14 +121,22 @@ public class LaneWalkerClient implements ClientModInitializer {
         stepIndex = index;
         Program.Step step = program.steps.get(index);
         cooldown = WALL_COOLDOWN;
-        waitTicks = step.amount * 20;
+        String desc = step.describe();
+        if (step.kind == Program.Kind.WAIT_RANDOM) {
+            int lo = Math.min(step.amount, step.amount2), hi = Math.max(step.amount, step.amount2);
+            int t = lo + RANDOM.nextInt(hi - lo + 1);          // tenths of a second
+            waitTicks = Math.max(1, t * 2);
+            desc = "random wait: " + Program.tenths(t) + " s";
+        } else {
+            waitTicks = step.amount * 20;
+        }
         ClientPlayerEntity p = client.player;
         legStart = new Vec3d(p.getX(), p.getY(), p.getZ());
         String trip = program.repeats > 0
                 ? "  (trip " + (tripsDone + 1) + "/" + program.repeats + ")"
                 : "  (trip " + (tripsDone + 1) + ")";
         say(client, Text.literal("Lane Walker: ").formatted(Formatting.YELLOW)
-                .append(Text.literal(step.describe()).formatted(Formatting.WHITE))
+                .append(Text.literal(desc).formatted(Formatting.WHITE))
                 .append(Text.literal(trip).formatted(Formatting.GRAY)));
     }
 
@@ -176,7 +185,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         Program.Dir walkDir = null;
 
         switch (step.kind) {
-            case WAIT -> {
+            case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
                     if (!advance(client)) return;
                 }
@@ -194,7 +203,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (done) {
                         if (!advance(client)) return;
                         Program.Step now = program.steps.get(stepIndex);
-                        walkDir = now.kind == Program.Kind.WAIT ? null : now.dir;
+                        walkDir = now.kind.isWait() ? null : now.dir;
                     }
                 }
             }

@@ -10,7 +10,8 @@ Build a walking program out of Scratch-style blocks, then run it.
 | `/walk edit`, `/walk run`, `/walk stop` | Same, from chat |
 
 ## The block editor
-* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks` and `wait [1] seconds`.
+* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
+* **random wait** pauses for a different random time (to the nearest 0.1 s) between the two numbers every time it runs. On it, a click changes the number by 0.1 s and Shift + click by 1 s.
 * **Drag** blocks from the left palette into the orange **repeat** block, and drag them up or down to reorder them.
 * **Drag a block back to the palette** to delete it.
 * **Drop-downs (▾)** open a list when you click them:
@@ -25,4 +26,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-2.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-2.2.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

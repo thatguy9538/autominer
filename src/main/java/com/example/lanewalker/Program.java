@@ -18,32 +18,50 @@ public class Program {
         public String label() { return name().toLowerCase(); }
     }
 
-    public enum Kind { WALK_WALL, WALK_BLOCKS, WAIT }
+    public enum Kind {
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM;
+
+        public boolean isWait() { return this == WAIT || this == WAIT_RANDOM; }
+    }
 
     public static class Step {
         public Kind kind;
         public Dir dir;
         public int amount;
+        /** WAIT_RANDOM only: amount = min, amount2 = max, both in tenths of a second. */
+        public int amount2;
 
         public Step(Kind kind, Dir dir, int amount) {
+            this(kind, dir, amount, amount);
+        }
+
+        public Step(Kind kind, Dir dir, int amount, int amount2) {
             this.kind = kind;
             this.dir = dir;
             this.amount = amount;
+            this.amount2 = amount2;
         }
 
-        public Step copy() { return new Step(kind, dir, amount); }
+        public Step copy() { return new Step(kind, dir, amount, amount2); }
 
         public String describe() {
             return switch (kind) {
                 case WALK_WALL -> "walk " + dir.label() + " until wall";
                 case WALK_BLOCKS -> "walk " + dir.label() + " " + amount + (amount == 1 ? " block" : " blocks");
                 case WAIT -> "wait " + amount + (amount == 1 ? " second" : " seconds");
+                case WAIT_RANDOM -> "random wait " + tenths(amount) + " to " + tenths(amount2) + " s";
             };
         }
     }
 
     public static final int MAX_STEPS = 30;
     public static final int MAX_AMOUNT = 999;
+    /** Longest random wait, in tenths of a second (60 s). */
+    public static final int MAX_TENTHS = 600;
+
+    public static String tenths(int t) {
+        return (t / 10) + "." + (t % 10);
+    }
 
     /** Round trips through the steps before stopping; 0 = forever. */
     public int repeats = 0;
@@ -61,7 +79,8 @@ public class Program {
     public void save(Path file) {
         StringBuilder sb = new StringBuilder("repeat ").append(repeats).append('\n');
         for (Step s : steps) {
-            sb.append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount).append('\n');
+            sb.append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
+                    .append(' ').append(s.amount2).append('\n');
         }
         try {
             Files.createDirectories(file.getParent());
@@ -78,9 +97,17 @@ public class Program {
                 String[] parts = line.trim().split("\\s+");
                 if (parts.length == 2 && parts[0].equals("repeat")) {
                     p.repeats = clamp(Integer.parseInt(parts[1]), 0, 100000);
-                } else if (parts.length == 3 && p.steps.size() < MAX_STEPS) {
-                    p.steps.add(new Step(Kind.valueOf(parts[0]), Dir.valueOf(parts[1]),
-                            clamp(Integer.parseInt(parts[2]), 1, MAX_AMOUNT)));
+                } else if ((parts.length == 3 || parts.length == 4) && p.steps.size() < MAX_STEPS) {
+                    Kind kind = Kind.valueOf(parts[0]);
+                    int a = Integer.parseInt(parts[2]);
+                    int b = parts.length == 4 ? Integer.parseInt(parts[3]) : a;
+                    if (kind == Kind.WAIT_RANDOM) {
+                        a = clamp(a, 0, MAX_TENTHS);
+                        b = clamp(b, 0, MAX_TENTHS);
+                    } else {
+                        a = clamp(a, 1, MAX_AMOUNT);
+                    }
+                    p.steps.add(new Step(kind, Dir.valueOf(parts[1]), a, b));
                 }
             }
             return p;

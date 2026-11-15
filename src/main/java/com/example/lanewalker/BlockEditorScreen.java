@@ -28,15 +28,15 @@ public class BlockEditorScreen extends Screen {
     private static final int BH = 22;      // stack block height
     private static final int ARM = 14;     // width of the repeat block's left arm
     private static final int TOP = 24;
-    private static final int PAL_X = 8, PAL_W = 156;
+    private static final int PAL_X = 8, PAL_W = 176;
 
-    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, REPEAT, RMODE, BUTTON, MENU_ITEM }
+    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, NUM2, REPEAT, RMODE, BUTTON, MENU_ITEM }
 
     private record Hit(int x1, int y1, int x2, int y2, HitType type, int index) {
         boolean contains(int x, int y) { return x >= x1 && x < x2 && y >= y1 && y < y2; }
     }
 
-    private enum SegType { LABEL, DIR, MODE, NUM, REPEAT, RMODE }
+    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, REPEAT, RMODE }
 
     /** An open drop-down list. */
     private record Menu(HitType kind, int index, int x, int y, int w, List<String> options, int selected) {}
@@ -53,6 +53,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.WALK_WALL, Program.Dir.LEFT, 5),
             new Program.Step(Program.Kind.WALK_BLOCKS, Program.Dir.RIGHT, 5),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
+            new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
     };
 
     private static final String[] BUTTONS = {"▶ Run", "■ Stop", "Reset", "Done"};
@@ -154,6 +155,7 @@ public class BlockEditorScreen extends Screen {
             case RMODE -> openMenu(hit, REPEAT_MODE_OPTIONS, p.repeats == 0 ? 0 : 1);
             case MENU_ITEM -> { }
             case NUM -> changeAmount(p.steps.get(hit.index), sign * step);
+            case NUM2 -> changeAmount2(p.steps.get(hit.index), sign * step);
             case REPEAT -> changeRepeats(sign * step);
             case PALETTE -> {
                 if (leftDown) startDrag(TEMPLATES[hit.index].copy(), hit, mx, my);
@@ -191,7 +193,17 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount(Program.Step s, int delta) {
-        s.amount = Program.clamp(s.amount + delta, 1, Program.MAX_AMOUNT);
+        if (s.kind == Program.Kind.WAIT_RANDOM) {          // tenths of a second
+            s.amount = Program.clamp(s.amount + delta, 0, Program.MAX_TENTHS);
+            if (s.amount2 < s.amount) s.amount2 = s.amount;
+        } else {
+            s.amount = Program.clamp(s.amount + delta, 1, Program.MAX_AMOUNT);
+        }
+    }
+
+    private void changeAmount2(Program.Step s, int delta) {
+        s.amount2 = Program.clamp(s.amount2 + delta, 0, Program.MAX_TENTHS);
+        if (s.amount > s.amount2) s.amount = s.amount2;
     }
 
     private void changeRepeats(int delta) {
@@ -245,6 +257,10 @@ public class BlockEditorScreen extends Screen {
         Hit hit = dragStep == null ? hitAt(mx, my) : null;
         if (hit != null && hit.type == HitType.NUM) {
             changeAmount(program().steps.get(hit.index), dir * (shift() ? 10 : 1));
+            return true;
+        }
+        if (hit != null && hit.type == HitType.NUM2) {
+            changeAmount2(program().steps.get(hit.index), dir * (shift() ? 10 : 1));
             return true;
         }
         if (hit != null && hit.type == HitType.REPEAT) {
@@ -306,9 +322,12 @@ public class BlockEditorScreen extends Screen {
         }
         ctx.drawText(textRenderer, "Control", x1 + 6, y, HINT, false);
         y += 12;
-        int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[2], -1, false, PALETTE_BG);
-        nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, 2));
-        y += BH + 14;
+        for (int i = 2; i < TEMPLATES.length; i++) {
+            int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, false, PALETTE_BG);
+            nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, i));
+            y += BH + 8;
+        }
+        y += 6;
 
         String[] tips = {
                 "Drag blocks into the", "repeat block.",
@@ -376,7 +395,7 @@ public class BlockEditorScreen extends Screen {
                 Program.Step step = p.steps.get(s);
                 int w = drawStackBlock(ctx, x + ARM, iy, step, s, true, SCRIPT_BG);
                 nextHits.add(0, new Hit(x + ARM, iy, x + ARM + w, iy + BH, HitType.BLOCK, s));
-                tabs.add(new int[]{x + ARM, iy + BH, step.kind == Program.Kind.WAIT ? CONTROL : MOTION});
+                tabs.add(new int[]{x + ARM, iy + BH, step.kind.isWait() ? CONTROL : MOTION});
                 s++;
             }
             iy += BH;
@@ -446,12 +465,15 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case WAIT_RANDOM -> List.of(new Seg(SegType.LABEL, "random wait"),
+                    new Seg(SegType.NUM, Program.tenths(s.amount)), new Seg(SegType.LABEL, "to"),
+                    new Seg(SegType.NUM2, Program.tenths(s.amount2)), new Seg(SegType.LABEL, "s"));
         };
     }
 
     /** Draws a stack block and returns its width. */
     private int drawStackBlock(DrawContext ctx, int x, int y, Program.Step s, int index, boolean editable, int bg) {
-        boolean motion = s.kind != Program.Kind.WAIT;
+        boolean motion = !s.kind.isWait();
         int color = motion ? MOTION : CONTROL, dark = motion ? MOTION_DARK : CONTROL_DARK;
         List<Seg> segs = segmentsFor(s);
         int w = Math.max(120, segmentsWidth(segs) + 16);
@@ -468,7 +490,7 @@ public class BlockEditorScreen extends Screen {
         return switch (seg.type) {
             case LABEL -> textRenderer.getWidth(seg.text);
             case DIR, MODE, RMODE -> textRenderer.getWidth(seg.text + " ▾") + 10;
-            case NUM, REPEAT -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
+            case NUM, NUM2, REPEAT -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
         };
     }
 
@@ -492,12 +514,14 @@ public class BlockEditorScreen extends Screen {
                     if (editable && (index >= 0 || ht == HitType.RMODE))
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, ht, index));
                 }
-                case NUM, REPEAT -> {
+                case NUM, NUM2, REPEAT -> {
                     pill(ctx, tx, y + 4, w, BH - 8, WHITE);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             FIELD_TEXT, false);
                     if (editable && seg.type == SegType.NUM && index >= 0)
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.NUM, index));
+                    if (editable && seg.type == SegType.NUM2 && index >= 0)
+                        nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.NUM2, index));
                     if (editable && seg.type == SegType.REPEAT)
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.REPEAT, -1));
                 }
