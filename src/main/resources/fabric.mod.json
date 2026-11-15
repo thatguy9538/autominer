@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "crosshairaim",
+  "id": "lanewalker",
   "version": "${version}",
-  "name": "Crosshair Aim",
-  "description": "Type /aim <x> <y> to point your crosshair exactly at a yaw (x) and pitch (y).",
+  "name": "Lane Walker",
+  "description": "Walks you one way until you hit a wall, then the other way, back and forth. K to start/stop, or /walk <first> <second> [blocks].",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["com.example.crosshairaim.CrosshairAimClient"]
+    "client": ["com.example.lanewalker.LaneWalkerClient"]
   },
   "depends": {
     "fabricloader": ">=0.17.0",

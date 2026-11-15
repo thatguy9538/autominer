@@ -1,4 +1,4 @@
-name: Build Crosshair Aim
+name: Build Lane Walker
 
 on:
   push:
@@ -28,21 +28,21 @@ jobs:
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
-          name: crosshairaim-fabric-1.21.10
+          name: lanewalker-fabric-1.21.10
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
 
       - name: Save jar to the 'builds' branch
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/walker'
         run: |
           mkdir -p /tmp/out
           cp build/libs/*.jar /tmp/out/
           rm -f /tmp/out/*-sources.jar
           cd /tmp/out
-          git init -q -b builds
+          git init -q -b builds-walker
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -q -m "Built jar from ${GITHUB_SHA}"
-          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" builds
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" builds-walker

@@ -1,23 +1,22 @@
-# Crosshair Aim: Fabric mod for Minecraft 1.21.10
+# Lane Walker: Fabric mod for Minecraft 1.21.10
 
-Type a direction in chat and your crosshair snaps exactly to it.
+Walks you one way until you hit a wall, then switches and walks the other way,
+back and forth until you stop it.
 
-## Commands
-| Command | What it does |
-|---------|--------------|
-| `/aim <x> <y>` | Turn to face yaw **x** and pitch **y** exactly |
-| `/aim` | Show the direction you're facing right now |
+## Controls
+| Input | What it does |
+|-------|--------------|
+| **K** | Start / stop. Uses your last directions, or left then right the first time |
+| `/walk <first> <second>` | Walk `<first>` until a wall, then `<second>`, and repeat |
+| `/walk <first> <second> <blocks>` | Same, but also switch after going that many blocks |
+| `/walk stop` | Stop |
 
-* **x = yaw** (left/right). These are the same numbers as "Facing" on the F3 screen.
-  South = 0, West = 90, North = 180 / -180, East = -90. Numbers outside -180 to 180 wrap around.
-* **y = pitch** (up/down). -90 is straight up, 0 is level, 90 is straight down.
-* Decimals work, for example `/aim 45.5 -12.25`.
+Directions are `forward`, `back`, `left` and `right`, relative to where you're looking.
+Example: `/walk left right` or `/walk forward back 20`.
+
+* You can still look around and jump while it walks.
+* It pauses while a menu is open and stops if you die.
+* Change the K key in Options → Controls → Key Binds → Lane Walker.
 
 ## Install
-1. Install the Fabric Loader for 1.21.10: https://fabricmc.net/use/installer/
-2. Put Fabric API for 1.21.10 in `.minecraft/mods`: https://modrinth.com/mod/fabric-api
-3. Put `crosshairaim-1.0.0.jar` in the same `mods` folder.
-
-## Build it yourself
-With Java 21, run `./gradlew build` (macOS/Linux) or `gradlew.bat build` (Windows).
-The jar is created in `build/libs/`.
+Put `lanewalker-1.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
