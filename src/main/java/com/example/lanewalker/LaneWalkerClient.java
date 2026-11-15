@@ -31,6 +31,8 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
  *   /walk <first> <second>            start: walk <first> until a wall, then <second>, and repeat
  *   /walk <first> <second> <blocks>   same, but switch after <blocks> blocks (or at a wall)
  *   /walk stop                        stop
+ *   /walk repeat <times>              stop by itself after that many round trips
+ *   /walk repeat forever              keep going until you stop it (default)
  *
  * Directions: forward, back, left, right (relative to where you're looking).
  */
@@ -50,6 +52,8 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static Dir first = Dir.LEFT;
     private static Dir second = Dir.RIGHT;
     private static int maxBlocks = 0;          // 0 = only switch at walls
+    private static int repeats = 0;            // round trips before stopping, 0 = forever
+    private static int tripsDone = 0;
     private static boolean onFirst = true;
     private static int cooldown = 0;
     private static Vec3d legStart = null;
@@ -62,6 +66,10 @@ public class LaneWalkerClient implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(LaneWalkerClient::onTick);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             LiteralArgumentBuilder<FabricClientCommandSource> walk = literal("walk");
+            walk.then(literal("repeat")
+                    .then(literal("forever").executes(ctx -> setRepeats(0)))
+                    .then(argument("times", IntegerArgumentType.integer(1, 100000))
+                            .executes(ctx -> setRepeats(IntegerArgumentType.getInteger(ctx, "times")))));
             walk.then(literal("stop").executes(ctx -> {
                 stop(MinecraftClient.getInstance(), "stopped");
                 return 1;
@@ -81,6 +89,17 @@ public class LaneWalkerClient implements ClientModInitializer {
         });
     }
 
+    private static int setRepeats(int times) {
+        repeats = times;
+        say(MinecraftClient.getInstance(), Text.literal("Lane Walker: repeat ").formatted(Formatting.YELLOW)
+                .append(Text.literal(repeatText()).formatted(Formatting.WHITE)));
+        return 1;
+    }
+
+    private static String repeatText() {
+        return repeats == 0 ? "forever" : repeats + (repeats == 1 ? " time" : " times");
+    }
+
     private static int start(Dir a, Dir b, int blocks) {
         first = a;
         second = b;
@@ -93,11 +112,13 @@ public class LaneWalkerClient implements ClientModInitializer {
         if (client.player == null) return;
         running = true;
         onFirst = true;
+        tripsDone = 0;
         cooldown = SWITCH_COOLDOWN;
         legStart = new Vec3d(client.player.getX(), client.player.getY(), client.player.getZ());
         say(client, Text.literal("Lane Walker: ").formatted(Formatting.YELLOW)
                 .append(Text.literal(name(first) + " <-> " + name(second)
-                        + (maxBlocks > 0 ? " every " + maxBlocks + " blocks" : " (switch at walls)"))
+                        + (maxBlocks > 0 ? " every " + maxBlocks + " blocks" : " (switch at walls)")
+                        + ", repeat " + repeatText())
                         .formatted(Formatting.GREEN))
                 .append(Text.literal("  K to stop").formatted(Formatting.GRAY)));
     }
@@ -140,12 +161,22 @@ public class LaneWalkerClient implements ClientModInitializer {
                 farEnough = dx * dx + dz * dz >= (double) maxBlocks * maxBlocks;
             }
             if (hitWall || farEnough) {
+                if (!onFirst) {           // finished a full round trip
+                    tripsDone++;
+                    if (repeats > 0 && tripsDone >= repeats) {
+                        stop(client, "done (" + tripsDone + (tripsDone == 1 ? " round trip)" : " round trips)"));
+                        return;
+                    }
+                }
                 onFirst = !onFirst;
                 current = onFirst ? first : second;
                 cooldown = SWITCH_COOLDOWN;
                 legStart = new Vec3d(player.getX(), player.getY(), player.getZ());
                 say(client, Text.literal("Lane Walker: now going ").formatted(Formatting.YELLOW)
-                        .append(Text.literal(name(current)).formatted(Formatting.WHITE)));
+                        .append(Text.literal(name(current)).formatted(Formatting.WHITE))
+                        .append(Text.literal(repeats > 0
+                                ? "  (trip " + (tripsDone + 1) + "/" + repeats + ")"
+                                : "  (trip " + (tripsDone + 1) + ")").formatted(Formatting.GRAY)));
             }
         }
 
