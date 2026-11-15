@@ -3,7 +3,7 @@
   "id": "lanewalker",
   "version": "${version}",
   "name": "Lane Walker",
-  "description": "Walks you one way until you hit a wall, then the other way, back and forth. K to start/stop, or /walk <first> <second> [blocks].",
+  "description": "Build a walking program from Scratch-style blocks (B) and run it (K).",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
