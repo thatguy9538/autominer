@@ -15,6 +15,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
@@ -185,6 +186,16 @@ public class LaneWalkerClient implements ClientModInitializer {
         Program.Dir walkDir = null;
 
         switch (step.kind) {
+            case SET_ANGLE -> {
+                float yaw = MathHelper.wrapDegrees((float) step.amount);
+                float pitch = MathHelper.clamp((float) step.amount2, -90f, 90f);
+                player.setYaw(yaw);
+                player.setPitch(pitch);
+                player.setHeadYaw(yaw);
+                if (!advance(client)) return;
+                Program.Step now = program.steps.get(stepIndex);
+                walkDir = now.kind.isWait() || now.kind == Program.Kind.SET_ANGLE ? null : now.dir;
+            }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
                     if (!advance(client)) return;
@@ -203,7 +214,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (done) {
                         if (!advance(client)) return;
                         Program.Step now = program.steps.get(stepIndex);
-                        walkDir = now.kind.isWait() ? null : now.dir;
+                        walkDir = now.kind.isWait() || now.kind == Program.Kind.SET_ANGLE ? null : now.dir;
                     }
                 }
             }

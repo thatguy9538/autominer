@@ -52,6 +52,7 @@ public class BlockEditorScreen extends Screen {
     private static final Program.Step[] TEMPLATES = {
             new Program.Step(Program.Kind.WALK_WALL, Program.Dir.LEFT, 5),
             new Program.Step(Program.Kind.WALK_BLOCKS, Program.Dir.RIGHT, 5),
+            new Program.Step(Program.Kind.SET_ANGLE, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
     };
@@ -193,7 +194,12 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount(Program.Step s, int delta) {
-        if (s.kind == Program.Kind.WAIT_RANDOM) {          // tenths of a second
+        if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
+            int v = s.amount + delta;
+            while (v > 180) v -= 360;
+            while (v < -180) v += 360;
+            s.amount = v;
+        } else if (s.kind == Program.Kind.WAIT_RANDOM) {          // tenths of a second
             s.amount = Program.clamp(s.amount + delta, 0, Program.MAX_TENTHS);
             if (s.amount2 < s.amount) s.amount2 = s.amount;
         } else {
@@ -202,6 +208,10 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount2(Program.Step s, int delta) {
+        if (s.kind == Program.Kind.SET_ANGLE) {            // pitch: -90 up .. 90 down
+            s.amount2 = Program.clamp(s.amount2 + delta, -90, 90);
+            return;
+        }
         s.amount2 = Program.clamp(s.amount2 + delta, 0, Program.MAX_TENTHS);
         if (s.amount > s.amount2) s.amount = s.amount2;
     }
@@ -315,14 +325,14 @@ public class BlockEditorScreen extends Screen {
         int y = y1 + 6;
         ctx.drawText(textRenderer, "Motion", x1 + 6, y, HINT, false);
         y += 12;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 3; i++) {
             int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, false, PALETTE_BG);
             nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, i));
             y += BH + 8;
         }
         ctx.drawText(textRenderer, "Control", x1 + 6, y, HINT, false);
         y += 12;
-        for (int i = 2; i < TEMPLATES.length; i++) {
+        for (int i = 3; i < TEMPLATES.length; i++) {
             int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, false, PALETTE_BG);
             nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, i));
             y += BH + 8;
@@ -465,6 +475,9 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case SET_ANGLE -> List.of(new Seg(SegType.LABEL, "set angle x"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)));
             case WAIT_RANDOM -> List.of(new Seg(SegType.LABEL, "random wait"),
                     new Seg(SegType.NUM, Program.tenths(s.amount)), new Seg(SegType.LABEL, "to"),
                     new Seg(SegType.NUM2, Program.tenths(s.amount2)), new Seg(SegType.LABEL, "s"));

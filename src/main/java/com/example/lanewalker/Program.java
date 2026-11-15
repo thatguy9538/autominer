@@ -19,7 +19,7 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM;
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE;
 
         public boolean isWait() { return this == WAIT || this == WAIT_RANDOM; }
     }
@@ -28,7 +28,8 @@ public class Program {
         public Kind kind;
         public Dir dir;
         public int amount;
-        /** WAIT_RANDOM only: amount = min, amount2 = max, both in tenths of a second. */
+        /** WAIT_RANDOM: amount = min, amount2 = max, in tenths of a second.
+         *  SET_ANGLE:   amount = yaw (x), amount2 = pitch (y), in degrees. */
         public int amount2;
 
         public Step(Kind kind, Dir dir, int amount) {
@@ -50,6 +51,7 @@ public class Program {
                 case WALK_BLOCKS -> "walk " + dir.label() + " " + amount + (amount == 1 ? " block" : " blocks");
                 case WAIT -> "wait " + amount + (amount == 1 ? " second" : " seconds");
                 case WAIT_RANDOM -> "random wait " + tenths(amount) + " to " + tenths(amount2) + " s";
+                case SET_ANGLE -> "set angle x " + amount + " y " + amount2;
             };
         }
     }
@@ -101,7 +103,10 @@ public class Program {
                     Kind kind = Kind.valueOf(parts[0]);
                     int a = Integer.parseInt(parts[2]);
                     int b = parts.length == 4 ? Integer.parseInt(parts[3]) : a;
-                    if (kind == Kind.WAIT_RANDOM) {
+                    if (kind == Kind.SET_ANGLE) {
+                        a = clamp(a, -180, 180);
+                        b = clamp(b, -90, 90);
+                    } else if (kind == Kind.WAIT_RANDOM) {
                         a = clamp(a, 0, MAX_TENTHS);
                         b = clamp(b, 0, MAX_TENTHS);
                     } else {
