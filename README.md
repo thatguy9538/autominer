@@ -13,8 +13,10 @@ Build a walking program out of Scratch-style blocks, then run it.
 * **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks` and `wait [1] seconds`.
 * **Drag** blocks from the left palette into the orange **repeat** block, and drag them up or down to reorder them.
 * **Drag a block back to the palette** to delete it.
-* **Click a field** to change it: left-click = next / +1, right-click = back / -1, hold **Shift** for x10, or use the mouse wheel.
-* The **repeat** field can be a number of times, or **forever** (right-click it down past 1).
+* **Drop-downs (▾)** open a list when you click them:
+  * on walk blocks: the direction (forward / back / left / right), and **until wall** or **blocks**
+  * on the repeat block: **forever** or **times**
+* **Number boxes:** left-click = +1, right-click = -1, hold **Shift** for x10, or use the mouse wheel.
 * Buttons: **Run** (closes the editor and starts), **Stop**, **Reset** (back to left/right forever), **Done**.
 
 Your program is saved automatically to `.minecraft/config/lanewalker.txt`.
@@ -23,4 +25,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-2.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-2.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
