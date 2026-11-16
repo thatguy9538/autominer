@@ -489,9 +489,13 @@ public class LaneWalkerClient implements ClientModInitializer {
                 if (!finish(client, true)) return;
                 walkDir = currentWalkDir();
             }
-            case SAY -> {
-                client.inGameHud.getChatHud().addMessage(Text.literal("[Lane Walker] ").formatted(Formatting.GOLD)
-                        .append(Text.literal(step.text).formatted(Formatting.WHITE)));
+            case SAY -> {                     // sends it in chat, like typing it yourself
+                String msg = step.text.trim();
+                if (msg.startsWith("/")) {
+                    if (msg.length() > 1) player.networkHandler.sendChatCommand(msg.substring(1));
+                } else if (!msg.isEmpty()) {
+                    player.networkHandler.sendChatMessage(msg);
+                }
                 if (!finish(client, true)) return;
                 walkDir = currentWalkDir();
             }

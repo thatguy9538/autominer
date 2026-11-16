@@ -40,14 +40,17 @@ Build a walking program out of Scratch-style blocks, then run it.
   **if health below [5] ❤** (hearts), **if y [below ▾] [64]**.
 * **Keys block (light blue):** **hold [left click] for [1.0] s** holds a key or mouse button down for that long,
   then lets go and moves on. Click the key box, then press any key or click a mouse button (left / right / middle)
-  to choose it; Esc cancels. The time counts in 0.1 s steps (Shift = 1 s). Holding a movement key (W, A, S, D)
+  to choose it; Esc cancels. Type the time in seconds, like 1.5. Holding a movement key (W, A, S, D)
   works too, and so does holding left click to keep mining or right click to keep using an item.
-* **Other blocks:** **say [hello]** (puts the words in your chat; only you see it), **play sound [ding ▾]**
+* **Other blocks:** **say [hello]** (sends the words in chat, like typing them yourself, so other players see them;
+  start it with `/` to run a command instead), **play sound [ding ▾]**
   (ding, chime or level up), **note: [my note]** (a grey comment that does nothing).
   To type words, click the white box, type, then press Enter (or click anywhere).
 * A block "completes" when it finishes normally. `walk N blocks` doesn't complete if a wall stops it early;
   an if block "completes" when its check was true.
-* **Drop-downs (▾)** open a list when you click them. **Number boxes:** click = +1, right-click = -1, Shift = x10, or scroll.
+* **Drop-downs (▾)** open a list when you click them.
+* **Number boxes:** click one, type the number, then press Enter (or click anywhere). Esc cancels.
+  Decimals work in time boxes (like `1.5`), and minus works for coordinates and angles. Numbers outside a box's range are pulled into range.
 * When you drag out a block with coordinates (go to, stop at, if at, repeat until, wait until, if y), it fills in where you are.
 * A script with no repeat runs once from top to bottom, then stops ("finished").
 * Buttons: **Stop**, **Reset** (back to one left/right script), **Done**.
@@ -58,4 +61,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-5.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

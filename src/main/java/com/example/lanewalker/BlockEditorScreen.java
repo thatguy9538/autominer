@@ -162,6 +162,10 @@ public class BlockEditorScreen extends Screen {
     private Program.Step capturingStep = null;
     /** "say" / "note" block whose words are being typed, or null. */
     private Program.Step editingText = null;
+    /** Number box being typed into: its block, which box, and what's typed so far. */
+    private Program.Step editNumStep = null;
+    private SegType editNumSeg = null;
+    private String numBuffer = "";
     private final Set<Integer> captureHeld = new HashSet<>();
 
     /** Per frame: block rectangles {x1, y1, x2, color} and "if" sockets {x, y}, by block id. */
@@ -192,7 +196,7 @@ public class BlockEditorScreen extends Screen {
 
     @Override
     public boolean shouldCloseOnEsc() {
-        return capturing < 0 && capturingStep == null && editingText == null;   // while picking a key, Esc cancels instead of closing
+        return capturing < 0 && capturingStep == null && editingText == null && editNumStep == null;   // while picking a key, Esc cancels instead of closing
     }
 
     @Override
@@ -200,6 +204,7 @@ public class BlockEditorScreen extends Screen {
         capturing = -1;
         capturingStep = null;
         editingText = null;
+        if (editNumStep != null) applyNumber();
         LaneWalkerClient.saveProgram();
     }
 
@@ -267,6 +272,12 @@ public class BlockEditorScreen extends Screen {
             return;
         }
 
+        if (editNumStep != null) {           // typing a number
+            if (leftDown || rightDown) applyNumber();        // clicking anywhere finishes
+            else pollNumber(h);
+            return;
+        }
+
         if (editingText != null) {           // typing into a "say" / "note" block
             if (leftDown || rightDown) editingText = null;   // clicking anywhere finishes
             else pollText(h);
@@ -316,10 +327,19 @@ public class BlockEditorScreen extends Screen {
                     s.link = -1;                 // right-click: cut the string
                 }
             }
-            case NUM -> changeAmount(s, sign * step);
-            case NUM2 -> changeAmount2(s, sign * step);
-            case NUM3 -> changeAmount3(s, sign * step);
-            case REPEAT -> changeRepeats(s, sign * step);
+            case NUM, NUM2, NUM3, REPEAT -> {
+                if (leftDown) {                  // click, then type the number
+                    startCapture(-1, h);
+                    editNumStep = s;
+                    editNumSeg = switch (hit.type) {
+                        case NUM2 -> SegType.NUM2;
+                        case NUM3 -> SegType.NUM3;
+                        case REPEAT -> SegType.REPEAT;
+                        default -> SegType.NUM;
+                    };
+                    numBuffer = "";
+                }
+            }
             case KEY -> {
                 if (leftDown) startCapture(hit.script, h);
                 else if (p != null) p.key = -1;
@@ -451,6 +471,76 @@ public class BlockEditorScreen extends Screen {
             }
             capturing = -1;
             return;
+        }
+    }
+
+    // ---- typing numbers
+
+    private void pollNumber(long handle) {
+        for (int k : VALID_KEYS) {
+            boolean down = GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
+            if (!down) {
+                captureHeld.remove(k);
+                continue;
+            }
+            if (!captureHeld.add(k)) continue;           // already held
+            if (k == GLFW.GLFW_KEY_ESCAPE) {             // cancel
+                editNumStep = null;
+                return;
+            }
+            if (k == GLFW.GLFW_KEY_ENTER || k == GLFW.GLFW_KEY_KP_ENTER) {
+                applyNumber();
+                return;
+            }
+            if (k == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!numBuffer.isEmpty()) numBuffer = numBuffer.substring(0, numBuffer.length() - 1);
+                continue;
+            }
+            String c = null;
+            if (k >= GLFW.GLFW_KEY_0 && k <= GLFW.GLFW_KEY_9) c = String.valueOf((char) ('0' + k - GLFW.GLFW_KEY_0));
+            if (k >= GLFW.GLFW_KEY_KP_0 && k <= GLFW.GLFW_KEY_KP_9) c = String.valueOf((char) ('0' + k - GLFW.GLFW_KEY_KP_0));
+            if ((k == GLFW.GLFW_KEY_MINUS || k == GLFW.GLFW_KEY_KP_SUBTRACT) && numBuffer.isEmpty()) c = "-";
+            if ((k == GLFW.GLFW_KEY_PERIOD || k == GLFW.GLFW_KEY_KP_DECIMAL) && !numBuffer.contains(".")) c = ".";
+            if (c != null && numBuffer.length() < 10) numBuffer += c;
+        }
+    }
+
+    /** Is this box in tenths of a second (so it takes a decimal point)? */
+    private static boolean isTenths(Program.Step s, SegType box) {
+        return s.kind == Program.Kind.WAIT_RANDOM || (s.kind == Program.Kind.HOLD_KEY && box == SegType.NUM2);
+    }
+
+    /** Puts the typed number into the box (kept in range like before); empty = no change. */
+    private void applyNumber() {
+        Program.Step s = editNumStep;
+        SegType box = editNumSeg;
+        editNumStep = null;
+        if (s == null || numBuffer.isEmpty() || numBuffer.equals("-") || numBuffer.equals(".")) return;
+        int value;
+        try {
+            double d = Double.parseDouble(numBuffer);
+            if (isTenths(s, box)) d *= 10;
+            value = (int) Math.max(-2_000_000_000L, Math.min(2_000_000_000L, Math.round(d)));
+        } catch (NumberFormatException e) {
+            return;
+        }
+        int current = switch (box) {
+            case NUM2 -> s.amount2;
+            case NUM3 -> s.amount3;
+            default -> s.amount;
+        };
+        int delta = (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, (long) value - current));
+        switch (box) {
+            case NUM2 -> changeAmount2(s, delta);
+            case NUM3 -> changeAmount3(s, delta);
+            case REPEAT -> changeRepeats(s, delta);
+            default -> {
+                if (s.kind == Program.Kind.SET_ANGLE) {          // wrap any angle into -180..180
+                    s.amount = Math.floorMod(value + 180, 360) - 180;
+                } else {
+                    changeAmount(s, delta);
+                }
+            }
         }
     }
 
@@ -642,31 +732,12 @@ public class BlockEditorScreen extends Screen {
         int mx = (int) mouseX, my = (int) mouseY;
         int dir = verticalAmount > 0 ? 1 : verticalAmount < 0 ? -1 : 0;
         if (dir == 0) return false;
-        if (menu != null || capturing >= 0 || capturingStep != null || editingText != null) return true;
+        if (menu != null || capturing >= 0 || capturingStep != null || editingText != null
+                || editNumStep != null) return true;
         if (inPalette(mx, my)) {
             int max = Math.max(0, palContentHeight - (areaY2() - TOP) + 8);
             palScroll = Program.clamp(palScroll - dir * 16, 0, max);
             return true;
-        }
-        Hit hit = dragStep == null ? hitAt(mx, my) : null;
-        Program.Step s = hit != null ? hit.step : null;
-        int amount = dir * (shift() ? 10 : 1);
-        if (s != null) {
-            switch (hit.type) {
-                case NUM -> { changeAmount(s, amount); return true; }
-                case NUM2 -> { changeAmount2(s, amount); return true; }
-                case NUM3 -> { changeAmount3(s, amount); return true; }
-                case REPEAT -> { changeRepeats(s, amount); return true; }
-                case DIR -> {
-                    s.dir = dir > 0 ? s.dir.next() : s.dir.prev();
-                    return true;
-                }
-                case MODE -> {
-                    s.kind = s.kind == Program.Kind.WALK_WALL ? Program.Kind.WALK_BLOCKS : Program.Kind.WALK_WALL;
-                    return true;
-                }
-                default -> { }
-            }
         }
         if (inScript(mx, my)) {
             int max = Math.max(0, contentHeight - (areaY2() - TOP) + 16);
@@ -743,7 +814,7 @@ public class BlockEditorScreen extends Screen {
                 "Click its key to change it,", "\u25B6 runs that script.",
                 "Blocks snap under a hat", "or inside repeat / if.",
                 "Drag a block or hat back", "here to delete it.",
-                "Click \u25BE to open a list.", "Numbers: click = +1,", "right-click = -1,", "Shift = x10, or scroll.",
+                "Click \u25BE to open a list.", "Numbers: click the box,", "type, then press Enter.",
                 "If done: click its \u25CF,", "then a block to tie it.", "Right-click \u25CF to untie.",
                 "Hold key: click its key box,", "then press a key or click", "a mouse button.",
                 "If blocks: click \"+ else\" on", "the bottom to add an else.",
@@ -1021,6 +1092,14 @@ public class BlockEditorScreen extends Screen {
     // ------------------------------------------------------------------ block text
 
     private List<Seg> segmentsFor(Program.Step s) {
+        List<Seg> segs = rawSegmentsFor(s);
+        if (s != editNumStep) return segs;
+        List<Seg> out = new ArrayList<>();
+        for (Seg seg : segs) out.add(seg.type == editNumSeg ? new Seg(seg.type, numBuffer + "_") : seg);
+        return out;
+    }
+
+    private List<Seg> rawSegmentsFor(Program.Step s) {
         return switch (s.kind) {
             case WALK_WALL -> List.of(new Seg(SegType.LABEL, "walk"), new Seg(SegType.DIR, s.dir.label()),
                     new Seg(SegType.MODE, "until wall"));
@@ -1152,7 +1231,8 @@ public class BlockEditorScreen extends Screen {
                     boolean picking = (seg.type == SegType.KEY && capturing == si && si >= 0)
                             || ((seg.type == SegType.HOLDKEY || seg.type == SegType.SCRIPTKEY)
                                 && step != null && capturingStep == step)
-                            || (seg.type == SegType.TEXT && step != null && editingText == step);
+                            || (seg.type == SegType.TEXT && step != null && editingText == step)
+                            || (step != null && step == editNumStep && seg.type == editNumSeg);
                     pill(ctx, tx, fy1, w, BH - 8, picking ? CAPTURE_BG : WHITE);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             FIELD_TEXT, false);
