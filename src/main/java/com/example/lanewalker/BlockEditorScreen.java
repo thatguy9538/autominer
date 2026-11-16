@@ -16,10 +16,9 @@ import java.util.Set;
 /**
  * A Scratch-style block editor for Lane Walker scripts.
  *
- * Each script starts with a "when [key] pressed" hat block. Drag a new hat out
- * of the palette to add a script, and drag a hat back to the palette to delete
- * its script. Drag blocks into a script's "repeat" block, drag them around to
- * reorder them, and drag them back to the palette to delete them.
+ * Each script starts with a "when [key] pressed" hat block. Blocks snap under
+ * it, and "C" blocks (repeat, if at, if done) hold their own section of blocks.
+ * Drag a hat or block back to the palette to delete it.
  */
 public class BlockEditorScreen extends Screen {
 
@@ -30,29 +29,38 @@ public class BlockEditorScreen extends Screen {
     private static final int GREEN = 0xFF59C059;
     private static final int PALETTE_BG = 0xFFE9EEF2, SCRIPT_BG = 0xFFF9F9F9, BORDER = 0xFFC6CCD8;
     private static final int WHITE = 0xFFFFFFFF, FIELD_TEXT = 0xFF575E75, HINT = 0xFF6B7290;
-    private static final int CAPTURE_BG = 0xFFFFF3B0;
+    private static final int CAPTURE_BG = 0xFFFFF3B0, DROP_LINE = 0xFF575E75;
 
     private static final int BH = 22;      // stack block height
-    private static final int ARM = 14;     // width of the repeat block's left arm
+    private static final int ARM = 14;     // width of a C block's left arm
+    private static final int C_BOTTOM = 12;
+    private static final int EMPTY_C = 16; // height of an empty C block's inside
     private static final int TOP = 24;
-    private static final int PAL_X = 8, PAL_W = 186;
+    private static final int PAL_X = 8, PAL_W = 176;
     private static final int SCRIPT_GAP = 30;
 
     private enum HitType {
         PALETTE, HAT_TEMPLATE, HAT, KEY, RUN, BLOCK, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, BUTTON, MENU_ITEM
     }
 
-    /** A clickable area; script = which script it belongs to (-1 = none), index = block index. */
-    private record Hit(int x1, int y1, int x2, int y2, HitType type, int script, int index) {
+    /**
+     * A clickable area. script = which script (-1 = none); step = the block it belongs to;
+     * list = the list that block sits in; index = palette / button / menu item number.
+     */
+    private record Hit(int x1, int y1, int x2, int y2, HitType type, int script,
+                       Program.Step step, List<Program.Step> list, int index) {
         boolean contains(int x, int y) { return x >= x1 && x < x2 && y >= y1 && y < y2; }
     }
+
+    /** A place a dragged block could be dropped: position index in a list. */
+    private record DropPoint(List<Program.Step> list, int index, int x, int y) {}
 
     private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, KEY, RUN }
 
     private record Seg(SegType type, String text) {}
 
     /** An open drop-down list. */
-    private record Menu(HitType kind, int script, int index, int x, int y, int w, List<String> options, int selected) {}
+    private record Menu(HitType kind, Program.Step step, int x, int y, int w, List<String> options, int selected) {}
 
     private static final List<String> DIR_OPTIONS = List.of("forward", "back", "left", "right");
     private static final List<String> WALK_MODE_OPTIONS = List.of("until wall", "blocks");
@@ -65,11 +73,12 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.WALK_BLOCKS, Program.Dir.RIGHT, 5),
             new Program.Step(Program.Kind.SET_ANGLE, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.GO_TO, Program.Dir.LEFT, 0, 64, 0),
+            new Program.Step(Program.Kind.REPEAT, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.IF_AT, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.IF, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
             new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
-            new Program.Step(Program.Kind.IF, Program.Dir.LEFT, 0, 0),
-            new Program.Step(Program.Kind.IF_AT, Program.Dir.LEFT, 0, 0),
     };
     private static final int MOTION_COUNT = 4;
 
@@ -97,22 +106,23 @@ public class BlockEditorScreen extends Screen {
 
     private List<Hit> hits = new ArrayList<>();
     private List<Hit> nextHits = new ArrayList<>();
+    private final List<DropPoint> dropPoints = new ArrayList<>();
+    private DropPoint bestDrop = null;
 
     private boolean prevLeft, prevRight;
 
     // dragging
-    private Program.Step dragStep = null;   // a block being dragged
+    private Program.Step dragStep = null;   // a block (with anything inside it) being dragged
     private boolean dragHatNew = false;     // a new "when key pressed" from the palette
     private int dragHatScript = -1;         // an existing script's hat (drop on the palette to delete)
     private int dragOffX, dragOffY;
-    private int dropScript = -1, insertAt = -1;
 
     private int scrollY = 0, contentHeight = 0;
     private int palScroll = 0, palContentHeight = 0;
     private Menu menu = null;
 
-    /** Id of the "if" block whose string is being connected, or -1. */
-    private int linkFrom = -1;
+    /** The "if done" block whose string is being connected, and its script. */
+    private Program.Step linkFrom = null;
     private int linkScript = -1;
 
     /** Script whose key is being picked ("press a key"), or -1. */
@@ -122,6 +132,8 @@ public class BlockEditorScreen extends Screen {
     /** Per frame: block rectangles {x1, y1, x2, color} and "if" sockets {x, y}, by block id. */
     private final Map<Integer, int[]> blockRects = new HashMap<>();
     private final Map<Integer, int[]> sockets = new HashMap<>();
+    /** Per frame: little connector tabs {x, y, color}, drawn after the blocks. */
+    private final List<int[]> tabs = new ArrayList<>();
 
     public BlockEditorScreen() {
         super(Text.literal("Lane Walker Blocks"));
@@ -219,16 +231,12 @@ public class BlockEditorScreen extends Screen {
             return;
         }
 
-        if (linkFrom >= 0) {                // connecting an "if": click a block in the same script
+        if (linkFrom != null) {             // connecting an "if done": click a block in the same script
             Hit target = leftDown ? hitAt(mx, my) : null;
-            Program p = script(linkScript);
-            Program.Step from = p != null ? p.byId(linkFrom) : null;
-            if (from != null && target != null && target.script == linkScript && target.index >= 0
-                    && target.type != HitType.PALETTE && target.type != HitType.BUTTON) {
-                Program.Step to = p.steps.get(target.index);
-                if (to.id != from.id) from.link = to.id;
+            if (target != null && target.step != null && target.script == linkScript && target.step != linkFrom) {
+                linkFrom.link = target.step.id;
             }
-            linkFrom = -1;
+            linkFrom = null;
             linkScript = -1;
             return;
         }
@@ -238,31 +246,30 @@ public class BlockEditorScreen extends Screen {
         int sign = leftDown ? 1 : -1;
         int step = shift() ? 10 : 1;
         Program p = script(hit.script);
+        Program.Step s = hit.step;
 
         switch (hit.type) {
-            case DIR -> openMenu(hit, DIR_OPTIONS, p.steps.get(hit.index).dir.ordinal());
-            case MODE -> openMenu(hit, WALK_MODE_OPTIONS,
-                    p.steps.get(hit.index).kind == Program.Kind.WALK_WALL ? 0 : 1);
-            case RMODE -> openMenu(hit, REPEAT_MODE_OPTIONS, p.repeats == 0 ? 0 : 1);
+            case DIR -> openMenu(hit, DIR_OPTIONS, s.dir.ordinal());
+            case MODE -> openMenu(hit, WALK_MODE_OPTIONS, s.kind == Program.Kind.WALK_WALL ? 0 : 1);
+            case RMODE -> openMenu(hit, REPEAT_MODE_OPTIONS, s.amount == 0 ? 0 : 1);
             case LINK -> {
-                Program.Step s = p.steps.get(hit.index);
                 if (leftDown) {                  // start connecting
-                    linkFrom = s.id;
+                    linkFrom = s;
                     linkScript = hit.script;
                 } else {
                     s.link = -1;                 // right-click: cut the string
                 }
             }
-            case NUM -> changeAmount(p.steps.get(hit.index), sign * step);
-            case NUM2 -> changeAmount2(p.steps.get(hit.index), sign * step);
-            case NUM3 -> changeAmount3(p.steps.get(hit.index), sign * step);
-            case REPEAT -> changeRepeats(p, sign * step);
+            case NUM -> changeAmount(s, sign * step);
+            case NUM2 -> changeAmount2(s, sign * step);
+            case NUM3 -> changeAmount3(s, sign * step);
+            case REPEAT -> changeRepeats(s, sign * step);
             case KEY -> {
                 if (leftDown) startCapture(hit.script, h);
-                else p.key = -1;
+                else if (p != null) p.key = -1;
             }
             case RUN -> {
-                if (leftDown) {
+                if (leftDown && p != null) {
                     LaneWalkerClient.saveProgram();
                     close();
                     LaneWalkerClient.start(client, p);
@@ -272,34 +279,36 @@ public class BlockEditorScreen extends Screen {
                 if (leftDown) {
                     dragHatScript = hit.script;
                     dragOffX = mx - hit.x1;
-                    dragOffY = my - hit.y1;
+                    dragOffY = my - hit.y1 - 7;
                 }
             }
             case HAT_TEMPLATE -> {
                 if (leftDown && ws().scripts.size() < Workspace.MAX_SCRIPTS) {
                     dragHatNew = true;
                     dragOffX = mx - hit.x1;
-                    dragOffY = my - hit.y1;
+                    dragOffY = my - hit.y1 - 7;
                 }
             }
             case PALETTE -> {
                 if (leftDown) {
-                    Program.Step s = TEMPLATES[hit.index].copy();
-                    if ((s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT)
-                            && client.player != null) {   // start at your spot
-                        s.amount = MathHelper.floor(client.player.getX());
-                        s.amount2 = MathHelper.floor(client.player.getZ());
+                    Program.Step n = TEMPLATES[hit.index].copy();
+                    if ((n.kind == Program.Kind.STOP_AT || n.kind == Program.Kind.IF_AT) && client.player != null) {
+                        n.amount = MathHelper.floor(client.player.getX());   // start at your spot
+                        n.amount2 = MathHelper.floor(client.player.getZ());
                     }
-                    if (s.kind == Program.Kind.GO_TO && client.player != null) {
-                        s.amount = MathHelper.floor(client.player.getX());
-                        s.amount2 = MathHelper.floor(client.player.getY());
-                        s.amount3 = MathHelper.floor(client.player.getZ());
+                    if (n.kind == Program.Kind.GO_TO && client.player != null) {
+                        n.amount = MathHelper.floor(client.player.getX());
+                        n.amount2 = MathHelper.floor(client.player.getY());
+                        n.amount3 = MathHelper.floor(client.player.getZ());
                     }
-                    startDrag(s, hit, mx, my);
+                    startDrag(n, hit, mx, my);
                 }
             }
             case BLOCK -> {
-                if (leftDown) startDrag(p.steps.remove(hit.index), hit, mx, my);
+                if (leftDown && hit.list != null) {
+                    hit.list.remove(s);          // takes anything inside it along too
+                    startDrag(s, hit, mx, my);
+                }
             }
             case BUTTON -> {
                 if (leftDown) pressButton(hit.index);
@@ -352,21 +361,21 @@ public class BlockEditorScreen extends Screen {
     private void openMenu(Hit hit, List<String> options, int selected) {
         int w = hit.x2 - hit.x1;
         for (String o : options) w = Math.max(w, textRenderer.getWidth("✔ " + o) + 12);
-        menu = new Menu(hit.type, hit.script, hit.index, hit.x1, hit.y2 + 1, w, options, selected);
+        menu = new Menu(hit.type, hit.step, hit.x1, hit.y2 + 1, w, options, selected);
     }
 
     private void choose(Menu m, int option) {
-        Program p = script(m.script);
-        if (p == null) return;
+        Program.Step s = m.step;
+        if (s == null) return;
         switch (m.kind) {
-            case DIR -> p.steps.get(m.index).dir = Program.Dir.values()[option];
-            case MODE -> p.steps.get(m.index).kind = option == 0 ? Program.Kind.WALK_WALL : Program.Kind.WALK_BLOCKS;
+            case DIR -> s.dir = Program.Dir.values()[option];
+            case MODE -> s.kind = option == 0 ? Program.Kind.WALK_WALL : Program.Kind.WALK_BLOCKS;
             case RMODE -> {
                 if (option == 0) {
-                    if (p.repeats > 0) rememberedRepeats = p.repeats;
-                    p.repeats = 0;
-                } else if (p.repeats == 0) {
-                    p.repeats = Math.max(1, rememberedRepeats);
+                    if (s.amount > 0) rememberedRepeats = s.amount;
+                    s.amount = 0;
+                } else if (s.amount == 0) {
+                    s.amount = Math.max(1, rememberedRepeats);
                 }
             }
             default -> { }
@@ -412,10 +421,10 @@ public class BlockEditorScreen extends Screen {
         if (s.amount > s.amount2) s.amount = s.amount2;
     }
 
-    private void changeRepeats(Program p, int delta) {
-        if (p.repeats == 0) return;                                 // forever: use the drop-down
-        p.repeats = Program.clamp(p.repeats + delta, 1, 100000);
-        rememberedRepeats = p.repeats;
+    private void changeRepeats(Program.Step s, int delta) {
+        if (s.amount == 0) return;                                 // forever: use the drop-down
+        s.amount = Program.clamp(s.amount + delta, 1, 100000);
+        rememberedRepeats = s.amount;
     }
 
     // ---- dragging
@@ -429,15 +438,15 @@ public class BlockEditorScreen extends Screen {
     private void drop(int mx, int my) {
         List<Program> scripts = ws().scripts;
         if (dragStep != null) {
-            Program p = script(dropScript);
-            if (inScript(mx, my) && p != null && insertAt >= 0 && p.steps.size() < Program.MAX_STEPS) {
-                p.steps.add(Math.min(insertAt, p.steps.size()), dragStep);
+            DropPoint d = bestDrop;
+            if (inScript(mx, my) && d != null && d.list.size() < Program.MAX_STEPS) {
+                d.list.add(Math.min(d.index, d.list.size()), dragStep);
             }
             // dropped anywhere else (e.g. back on the palette) = deleted
             dragStep = null;
         } else if (dragHatNew) {
             if (inScript(mx, my) && scripts.size() < Workspace.MAX_SCRIPTS) {
-                Program np = new Program();
+                Program np = new Program();      // new scripts start empty: just the hat
                 np.key = freeKey();
                 scripts.add(np);
             }
@@ -446,8 +455,7 @@ public class BlockEditorScreen extends Screen {
             if (!inScript(mx, my) && dragHatScript < scripts.size()) scripts.remove(dragHatScript);   // delete script
             dragHatScript = -1;
         }
-        dropScript = -1;
-        insertAt = -1;
+        bestDrop = null;
     }
 
     private void pressButton(int index) {
@@ -474,21 +482,19 @@ public class BlockEditorScreen extends Screen {
             return true;
         }
         Hit hit = dragStep == null ? hitAt(mx, my) : null;
-        Program p = hit != null ? script(hit.script) : null;
+        Program.Step s = hit != null ? hit.step : null;
         int amount = dir * (shift() ? 10 : 1);
-        if (p != null) {
+        if (s != null) {
             switch (hit.type) {
-                case NUM -> { changeAmount(p.steps.get(hit.index), amount); return true; }
-                case NUM2 -> { changeAmount2(p.steps.get(hit.index), amount); return true; }
-                case NUM3 -> { changeAmount3(p.steps.get(hit.index), amount); return true; }
-                case REPEAT -> { changeRepeats(p, amount); return true; }
+                case NUM -> { changeAmount(s, amount); return true; }
+                case NUM2 -> { changeAmount2(s, amount); return true; }
+                case NUM3 -> { changeAmount3(s, amount); return true; }
+                case REPEAT -> { changeRepeats(s, amount); return true; }
                 case DIR -> {
-                    Program.Step s = p.steps.get(hit.index);
                     s.dir = dir > 0 ? s.dir.next() : s.dir.prev();
                     return true;
                 }
                 case MODE -> {
-                    Program.Step s = p.steps.get(hit.index);
                     s.kind = s.kind == Program.Kind.WALK_WALL ? Program.Kind.WALK_BLOCKS : Program.Kind.WALK_WALL;
                     return true;
                 }
@@ -512,6 +518,7 @@ public class BlockEditorScreen extends Screen {
         nextHits = new ArrayList<>();
         blockRects.clear();
         sockets.clear();
+        dropPoints.clear();
 
         ctx.drawCenteredTextWithShadow(textRenderer, "Lane Walker — Block Editor", width / 2, 8, WHITE);
 
@@ -521,7 +528,10 @@ public class BlockEditorScreen extends Screen {
 
         if (dragStep != null) {
             ctx.createNewRootLayer();
-            drawStackBlock(ctx, mouseX - dragOffX, mouseY - dragOffY, dragStep, -1, -1, false, SCRIPT_BG);
+            tabs.clear();
+            drawBlock(ctx, dragStep, null, mouseX - dragOffX, mouseY - dragOffY, -1, false, SCRIPT_BG, null);
+            for (int[] t : tabs) ctx.fill(t[0] + 9, t[1], t[0] + 19, t[1] + 2, t[2]);
+            tabs.clear();
         }
         if (dragHatNew || dragHatScript >= 0) {
             ctx.createNewRootLayer();
@@ -541,30 +551,34 @@ public class BlockEditorScreen extends Screen {
         ctx.drawText(textRenderer, "Events", x1 + 6, y, HINT, false);
         y += 12 + 7;                                     // room for the hat's hump
         int hw = drawHat(ctx, x1 + 6, y, null, -1, false);
-        nextHits.add(new Hit(x1 + 6, y - 7, x1 + 6 + hw, y + BH, HitType.HAT_TEMPLATE, -1, -1));
+        nextHits.add(new Hit(x1 + 6, y - 7, x1 + 6 + hw, y + BH, HitType.HAT_TEMPLATE, -1, null, null, -1));
         y += BH + 8;
 
         ctx.drawText(textRenderer, "Motion", x1 + 6, y, HINT, false);
         y += 12;
+        tabs.clear();
         for (int i = 0; i < TEMPLATES.length; i++) {
             if (i == MOTION_COUNT) {
                 y += 3;
                 ctx.drawText(textRenderer, "Control", x1 + 6, y, HINT, false);
                 y += 12;
             }
-            int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, -1, false, PALETTE_BG);
-            nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, -1, i));
-            y += BH + 5;
+            int[] size = new int[1];
+            int bottom = drawBlock(ctx, TEMPLATES[i], null, x1 + 6, y, -1, false, PALETTE_BG, size);
+            nextHits.add(new Hit(x1 + 6, y, x1 + 6 + size[0], bottom, HitType.PALETTE, -1, null, null, i));
+            y = bottom + 5;
         }
+        for (int[] t : tabs) ctx.fill(t[0] + 9, t[1], t[0] + 19, t[1] + 2, t[2]);
+        tabs.clear();
         y += 6;
 
         String[] tips = {
                 "Drag \"when key pressed\"", "out to add a script.",
                 "Click its key to change it,", "▶ runs that script.",
-                "Drag blocks into the", "repeat block.",
+                "Blocks snap under a hat", "or inside repeat / if.",
                 "Drag a block or hat back", "here to delete it.",
                 "Click ▾ to open a list.", "Numbers: click = +1,", "right-click = -1,", "Shift = x10, or scroll.",
-                "If: click its ●, then", "click a block to link it.", "Right-click ● to unlink.",
+                "If done: click its ●,", "then a block to tie it.", "Right-click ● to untie.",
                 "Scroll here for more.",
         };
         for (String tip : tips) {
@@ -588,8 +602,8 @@ public class BlockEditorScreen extends Screen {
         ctx.fill(x + 2, y - 5, x + 62, y - 2, EVENTS);
         ctx.fill(x, y - 2, x + w, y + BH, EVENTS);
         ctx.fill(x, y + BH - 1, x + w, y + BH, EVENTS_DARK);
-        if (editable) nextHits.add(0, new Hit(x, y - 7, x + w, y + BH, HitType.HAT, si, -1));
-        drawSegments(ctx, x + 8, y, segs, si, -1, editable, EVENTS_DARK);
+        if (editable) nextHits.add(0, new Hit(x, y - 7, x + w, y + BH, HitType.HAT, si, null, null, -1));
+        drawSegments(ctx, x + 8, y, segs, si, null, editable, EVENTS_DARK);
         return w;
     }
 
@@ -603,68 +617,22 @@ public class BlockEditorScreen extends Screen {
         int x = x1 + 14;
         int startY = y1 + 16 - scrollY;
         int y = startY;
-        dropScript = -1;
-        insertAt = -1;
 
         for (int si = 0; si < scripts.size(); si++) {
             Program p = scripts.get(si);
+            tabs.clear();
             drawHat(ctx, x, y, p, si, true);
-
-            // repeat C-block
-            int cy = y + BH;
-            List<Seg> top = p.repeats == 0
-                    ? List.of(new Seg(SegType.LABEL, "repeat"), new Seg(SegType.RMODE, "forever"))
-                    : List.of(new Seg(SegType.LABEL, "repeat"), new Seg(SegType.REPEAT, String.valueOf(p.repeats)),
-                    new Seg(SegType.RMODE, "times"));
-            int cw = Math.max(150, segmentsWidth(top) + 16);
-            ctx.fill(x, cy, x + cw, cy + BH, CONTROL);
-            drawSegments(ctx, x + 8, cy, top, si, -1, true, CONTROL_DARK);
-            ctx.fill(x + 9, cy, x + 19, cy + 2, EVENTS);    // tab from the hat block
-
-            // would a dragged block land in this script?
-            int innerTop = cy + BH;
-            if (dragStep != null && dropScript < 0 && inScript(mx, my)) {
-                int center = my - dragOffY + BH / 2;
-                int lo = innerTop - BH, hi = innerTop + Math.max(1, p.steps.size()) * BH + BH;
-                if (center >= lo && center < hi) {
-                    dropScript = si;
-                    insertAt = center < innerTop ? 0 : Program.clamp((center - innerTop) / BH, 0, p.steps.size());
-                }
+            int listTop = y + BH;
+            if (!p.steps.isEmpty()) tabs.add(new int[]{x, listTop, EVENTS});
+            int bottom = drawList(ctx, p.steps, x, listTop, si, true, SCRIPT_BG);
+            if (p.steps.isEmpty()) {
+                ctx.drawText(textRenderer, "drag blocks under here", x + 8, listTop + 6, HINT, false);
+                bottom = listTop + BH;
             }
-
-            // inner blocks
-            int iy = innerTop;
-            List<int[]> tabs = new ArrayList<>();
-            boolean preview = dropScript == si;
-            int slots = p.steps.size() + (preview ? 1 : 0);
-            for (int i = 0, s = 0; i < slots; i++) {
-                if (preview && i == insertAt) {
-                    ctx.fill(x + ARM, iy, x + ARM + 140, iy + BH, 0x40000000);   // drop preview
-                } else {
-                    Program.Step step = p.steps.get(s);
-                    int w = drawStackBlock(ctx, x + ARM, iy, step, si, s, true, SCRIPT_BG);
-                    nextHits.add(0, new Hit(x + ARM, iy, x + ARM + w, iy + BH, HitType.BLOCK, si, s));
-                    tabs.add(new int[]{x + ARM, iy + BH, colorOf(step)});
-                    blockRects.put(step.id, new int[]{x + ARM, iy, x + ARM + w, colorOf(step)});
-                    s++;
-                }
-                iy += BH;
-            }
-            if (slots == 0) {
-                ctx.drawText(textRenderer, "drag blocks in here", x + ARM + 6, iy + 7, HINT, false);
-                iy += BH;
-            }
-            int innerBottom = iy;
-
-            // arm + bottom of the C
-            ctx.fill(x, innerTop, x + ARM, innerBottom, CONTROL);
-            ctx.fill(x, innerBottom, x + cw, innerBottom + 14, CONTROL);
-            ctx.fill(x, innerBottom + 13, x + cw, innerBottom + 14, CONTROL_DARK);
-            ctx.fill(x + ARM + 9, innerTop, x + ARM + 19, innerTop + 2, CONTROL);   // tab into first block
             for (int[] t : tabs) ctx.fill(t[0] + 9, t[1], t[0] + 19, t[1] + 2, t[2]);
+            tabs.clear();
             drawStrings(ctx, p, mx, my);
-
-            y = innerBottom + 14 + SCRIPT_GAP;
+            y = bottom + SCRIPT_GAP;
         }
         if (scripts.isEmpty()) {
             ctx.drawText(textRenderer, "Drag a \"when key pressed\" block here to start a script.",
@@ -672,19 +640,94 @@ public class BlockEditorScreen extends Screen {
             y += 20;
         }
         contentHeight = y - startY;
+
+        // where would the dragged block land? show a line there
+        bestDrop = null;
+        if (dragStep != null && inScript(mx, my)) {
+            int bx = mx - dragOffX, by = my - dragOffY;
+            int best = Integer.MAX_VALUE;
+            for (DropPoint d : dropPoints) {
+                int dx = Math.abs(bx - d.x), dy = Math.abs(by - d.y);
+                if (dx > 70 || dy > 18) continue;
+                int score = dy * 3 + dx;
+                if (score < best) {
+                    best = score;
+                    bestDrop = d;
+                }
+            }
+            if (bestDrop != null) ctx.fill(bestDrop.x, bestDrop.y - 2, bestDrop.x + 120, bestDrop.y + 2, DROP_LINE);
+        }
         ctx.disableScissor();
     }
 
-    /** The coloured "strings" from each "if" socket in a script to the block it's linked to. */
+    /** Draws a list of blocks stacked from (x, y) and returns the y under the last one. */
+    private int drawList(DrawContext ctx, List<Program.Step> list, int x, int y, int si, boolean live, int bg) {
+        for (int i = 0; i <= list.size(); i++) {
+            if (live) dropPoints.add(new DropPoint(list, i, x, y));
+            if (i == list.size()) break;
+            y = drawBlock(ctx, list.get(i), list, x, y, si, live, bg, null);
+        }
+        return y;
+    }
+
+    /**
+     * Draws one block (and, for repeat / if, everything inside it). Returns the y under it.
+     * live = it's part of a script (clickable, droppable); size[0] gets its width if given.
+     */
+    private int drawBlock(DrawContext ctx, Program.Step s, List<Program.Step> list, int x, int y, int si,
+                          boolean live, int bg, int[] size) {
+        int color = colorOf(s), dark = s.kind.isControl() ? CONTROL_DARK : MOTION_DARK;
+        List<Seg> segs = segmentsFor(s);
+
+        if (!s.kind.isContainer()) {
+            int w = Math.max(120, segmentsWidth(segs) + 16);
+            ctx.fill(x, y, x + w, y + BH, color);
+            ctx.fill(x, y + BH - 1, x + w, y + BH, dark);
+            ctx.fill(x + 8, y, x + 20, y + 2, bg);           // notch on top
+            tabs.add(new int[]{x, y + BH, color});            // tab underneath
+            if (live) {
+                nextHits.add(0, new Hit(x, y, x + w, y + BH, HitType.BLOCK, si, s, list, -1));
+                blockRects.put(s.id, new int[]{x, y, x + w, color});
+            }
+            drawSegments(ctx, x + 8, y, segs, si, s, live, dark);
+            if (size != null) size[0] = w;
+            return y + BH;
+        }
+
+        // a C block: top bar, the blocks inside, then the bottom bar
+        int w = Math.max(150, segmentsWidth(segs) + 16);
+        ctx.fill(x, y, x + w, y + BH, color);
+        ctx.fill(x + 8, y, x + 20, y + 2, bg);               // notch on top
+        int innerTop = y + BH;
+        if (!s.children.isEmpty()) tabs.add(new int[]{x + ARM, innerTop, color});   // tab into the first block
+        int innerBottom = drawList(ctx, s.children, x + ARM, innerTop, si, live, bg);
+        if (s.children.isEmpty()) innerBottom = innerTop + EMPTY_C;
+        ctx.fill(x, innerTop, x + ARM, innerBottom, color);                      // left arm
+        ctx.fill(x, innerBottom, x + w, innerBottom + C_BOTTOM, color);          // bottom bar
+        ctx.fill(x, innerBottom + C_BOTTOM - 1, x + w, innerBottom + C_BOTTOM, dark);
+        tabs.add(new int[]{x, innerBottom + C_BOTTOM, color});
+        if (live) {
+            nextHits.add(0, new Hit(x, y, x + w, innerTop, HitType.BLOCK, si, s, list, -1));
+            nextHits.add(0, new Hit(x, innerTop, x + ARM, innerBottom, HitType.BLOCK, si, s, list, -1));
+            nextHits.add(0, new Hit(x, innerBottom, x + w, innerBottom + C_BOTTOM, HitType.BLOCK, si, s, list, -1));
+            blockRects.put(s.id, new int[]{x, y, x + w, color});
+        }
+        drawSegments(ctx, x + 8, y, segs, si, s, live, dark);
+        if (size != null) size[0] = w;
+        return innerBottom + C_BOTTOM;
+    }
+
+    /** The coloured "strings" from each "if done" socket in a script to the block it's tied to. */
     private void drawStrings(DrawContext ctx, Program p, int mx, int my) {
+        List<Program.Step> all = p.allSteps();
         int laneBase = 0;
-        for (Program.Step s : p.steps) {
+        for (Program.Step s : all) {
             int[] rect = blockRects.get(s.id);
             if (rect != null) laneBase = Math.max(laneBase, rect[2]);
         }
         laneBase += 8;
         int lane = 0;
-        for (Program.Step s : p.steps) {
+        for (Program.Step s : all) {
             if (s.kind != Program.Kind.IF || s.link < 0 || p.byId(s.link) == null) continue;
             int[] sock = sockets.get(s.id), target = blockRects.get(s.link);
             if (sock == null || target == null) continue;
@@ -696,8 +739,8 @@ public class BlockEditorScreen extends Screen {
             hLine(ctx, target[2], lx, ty, color);
             ctx.fill(target[2] - 2, ty - 2, target[2] + 1, ty + 3, color);   // knot on the target block
         }
-        if (linkFrom >= 0 && p.byId(linkFrom) != null && sockets.containsKey(linkFrom)) {   // string following the mouse
-            int[] sock = sockets.get(linkFrom);
+        if (linkFrom != null && all.contains(linkFrom) && sockets.containsKey(linkFrom.id)) {   // string following the mouse
+            int[] sock = sockets.get(linkFrom.id);
             hLine(ctx, sock[0], mx, sock[1], FIELD_TEXT);
             vLine(ctx, mx, sock[1], my, FIELD_TEXT);
         }
@@ -731,7 +774,7 @@ public class BlockEditorScreen extends Screen {
             if (hover) ctx.fill(m.x + 1, iy, m.x + m.w - 1, iy + ITEM_H, dark);
             String label = (i == m.selected ? "✔ " : "    ") + m.options.get(i);
             ctx.drawText(textRenderer, label, m.x + 4, iy + 3, WHITE, false);
-            nextHits.add(new Hit(m.x, iy, m.x + m.w, iy + ITEM_H, HitType.MENU_ITEM, m.script, i));
+            nextHits.add(new Hit(m.x, iy, m.x + m.w, iy + ITEM_H, HitType.MENU_ITEM, -1, null, null, i));
         }
     }
 
@@ -748,11 +791,11 @@ public class BlockEditorScreen extends Screen {
             ctx.fill(bx + 1, y + 19, bx + bw - 1, y + 20, darken(c));
             if (hover) ctx.fill(bx, y + 1, bx + bw, y + 19, 0x30FFFFFF);
             ctx.drawCenteredTextWithShadow(textRenderer, BUTTONS[i], bx + bw / 2, y + 6, WHITE);
-            nextHits.add(new Hit(bx, y, bx + bw, y + 20, HitType.BUTTON, -1, i));
+            nextHits.add(new Hit(bx, y, bx + bw, y + 20, HitType.BUTTON, -1, null, null, i));
         }
     }
 
-    // ------------------------------------------------------------------ blocks
+    // ------------------------------------------------------------------ block text
 
     private List<Seg> segmentsFor(Program.Step s) {
         return switch (s.kind) {
@@ -763,11 +806,15 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case REPEAT -> s.amount == 0
+                    ? List.of(new Seg(SegType.LABEL, "repeat"), new Seg(SegType.RMODE, "forever"))
+                    : List.of(new Seg(SegType.LABEL, "repeat"), new Seg(SegType.REPEAT, String.valueOf(s.amount)),
+                    new Seg(SegType.RMODE, "times"));
             case IF -> List.of(new Seg(SegType.LABEL, "if"), new Seg(SegType.LABEL, "done"),
-                    new Seg(SegType.LABEL, "→ run next"), new Seg(SegType.LINK, ""));
+                    new Seg(SegType.LINK, ""));
             case IF_AT -> List.of(new Seg(SegType.LABEL, "if at x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
-                    new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "\u2192 run next"));
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)));
             case GO_TO -> List.of(new Seg(SegType.LABEL, "go to x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "z"),
@@ -782,22 +829,6 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.NUM, Program.tenths(s.amount)), new Seg(SegType.LABEL, "to"),
                     new Seg(SegType.NUM2, Program.tenths(s.amount2)), new Seg(SegType.LABEL, "s"));
         };
-    }
-
-    /** Draws a stack block and returns its width. */
-    private int drawStackBlock(DrawContext ctx, int x, int y, Program.Step s, int si, int index,
-                               boolean editable, int bg) {
-        boolean motion = !s.kind.isControl();
-        int color = motion ? MOTION : CONTROL, dark = motion ? MOTION_DARK : CONTROL_DARK;
-        List<Seg> segs = segmentsFor(s);
-        int w = Math.max(120, segmentsWidth(segs) + 16);
-
-        ctx.fill(x, y, x + w, y + BH, color);
-        ctx.fill(x, y + BH - 1, x + w, y + BH, dark);
-        ctx.fill(x + 8, y, x + 20, y + 2, bg);           // notch on top
-        if (index < 0) ctx.fill(x + 9, y + BH, x + 19, y + BH + 2, color);   // tab (loose blocks)
-        drawSegments(ctx, x + 8, y, segs, si, index, editable, dark);
-        return w;
     }
 
     private int segWidth(Seg seg) {
@@ -816,7 +847,8 @@ public class BlockEditorScreen extends Screen {
         return w - 5;
     }
 
-    private void drawSegments(DrawContext ctx, int x, int y, List<Seg> segs, int si, int index,
+    /** Draws a block's words and fields; when editable, records their click areas. */
+    private void drawSegments(DrawContext ctx, int x, int y, List<Seg> segs, int si, Program.Step step,
                               boolean editable, int dark) {
         int tx = x, ty = y + (BH - 8) / 2;
         Program p = script(si);
@@ -830,33 +862,32 @@ public class BlockEditorScreen extends Screen {
                     ctx.drawText(textRenderer, seg.text + " ▾", tx + 5, ty, WHITE, false);
                     HitType ht = seg.type == SegType.DIR ? HitType.DIR
                             : seg.type == SegType.MODE ? HitType.MODE : HitType.RMODE;
-                    if (editable && p != null && (index >= 0 || ht == HitType.RMODE))
-                        nextHits.add(new Hit(tx, fy1, tx + w, fy2, ht, si, index));
+                    if (editable && step != null) nextHits.add(new Hit(tx, fy1, tx + w, fy2, ht, si, step, null, -1));
                 }
                 case LINK -> {
                     int cx = tx + 7, cyy = y + BH / 2;
-                    Program.Step me = editable && p != null && index >= 0 ? p.steps.get(index) : null;
-                    Program.Step linked = me != null && me.link >= 0 ? p.byId(me.link) : null;
+                    Program.Step linked = editable && p != null && step != null && step.link >= 0
+                            ? p.byId(step.link) : null;
                     int fillColor = linked != null ? colorOf(linked) : WHITE;
                     pill(ctx, cx - 6, cyy - 6, 12, 12, FIELD_TEXT);   // socket ring
                     pill(ctx, cx - 4, cyy - 4, 8, 8, fillColor);
-                    if (me != null) {
-                        sockets.put(me.id, new int[]{cx + 6, cyy});
-                        nextHits.add(new Hit(cx - 7, cyy - 7, cx + 7, cyy + 7, HitType.LINK, si, index));
+                    if (editable && step != null) {
+                        sockets.put(step.id, new int[]{cx + 6, cyy});
+                        nextHits.add(new Hit(cx - 7, cyy - 7, cx + 7, cyy + 7, HitType.LINK, si, step, null, -1));
                     }
                 }
                 case RUN -> {
                     pill(ctx, tx, fy1, w, BH - 8, GREEN);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             WHITE, false);
-                    if (editable && p != null) nextHits.add(new Hit(tx, fy1, tx + w, fy2, HitType.RUN, si, -1));
+                    if (editable && p != null) nextHits.add(new Hit(tx, fy1, tx + w, fy2, HitType.RUN, si, null, null, -1));
                 }
                 case NUM, NUM2, NUM3, REPEAT, KEY -> {
                     boolean picking = seg.type == SegType.KEY && capturing == si && si >= 0;
                     pill(ctx, tx, fy1, w, BH - 8, picking ? CAPTURE_BG : WHITE);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             FIELD_TEXT, false);
-                    if (!editable || p == null) break;
+                    if (!editable) break;
                     HitType ht = switch (seg.type) {
                         case NUM -> HitType.NUM;
                         case NUM2 -> HitType.NUM2;
@@ -864,8 +895,8 @@ public class BlockEditorScreen extends Screen {
                         case REPEAT -> HitType.REPEAT;
                         default -> HitType.KEY;
                     };
-                    boolean needsBlock = ht == HitType.NUM || ht == HitType.NUM2 || ht == HitType.NUM3;
-                    if (!needsBlock || index >= 0) nextHits.add(new Hit(tx, fy1, tx + w, fy2, ht, si, index));
+                    if (ht == HitType.KEY ? p != null : step != null)
+                        nextHits.add(new Hit(tx, fy1, tx + w, fy2, ht, si, step, null, -1));
                 }
             }
             tx += w + 5;

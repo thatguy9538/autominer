@@ -10,46 +10,28 @@ Build a walking program out of Scratch-style blocks, then run it.
 | `/walk edit`, `/walk run`, `/walk stop` | Open the editor, run the first script, stop |
 
 ## The block editor
-* **Scripts:** every script starts with a yellow **when [K] key pressed** block.
-  Drag a new one out of the **Events** section to add another script (up to 8).
+* **Scripts:** every script starts with a yellow **when [K] key pressed** block, and blocks snap underneath it.
+  Drag a new hat out of the **Events** section to add another script (up to 8); new scripts start empty.
   Click the key box, then press any key to choose that script's key (Esc cancels, Backspace clears;
   right-click the box to clear it). Two scripts can't share a key.
   Click the green **▶** on a script to run it right away. Drag a script's hat block back to the palette to delete the whole script.
   Only one script moves you at a time: pressing another script's key switches to it.
-  "If" strings only connect blocks inside the same script.
-* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `go to x [] y [] z []`, `stop at x [0] z [0]`, `if done → run next ●`, `if at x [] z [] → run next`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
-* **set angle x [0] y [0]** turns you to face an exact direction, like the F3 "Facing" numbers.
-  x = left/right (0 south, 90 west, 180 north, -90 east); y = up/down (-90 up, 0 level, 90 down).
-  Because walk directions are relative to where you look, use it to point yourself before walking.
-  Click = +1°, right-click = -1°, Shift = 10°, or scroll.
-* **go to x [] y [] z []** takes you to that block, then moves on to the next block.
-  If the game lets you fly (Creative, or a server that allows `/fly`), it turns flying on and flies there.
-  Otherwise it walks there on the ground (ignoring y) and hops up 1-block steps.
-  It stops the program if it can't get any closer for 10 seconds.
-  When you drag it out of the palette, it fills in the spot you're standing on.
-* **stop at x [0] z [0]** stops the whole program as soon as you step onto that block.
-  x and z are the first and third numbers of "XYZ" on the F3 screen (y is height, so it's ignored).
-  It works wherever you put it in the script, and you can use more than one.
-  When you drag it out of the palette, it fills in the spot you're standing on.
-  If you start the program while standing on the spot, it only stops once you come back to it.
-* **if done → run next ●** works like an `if` in code. Click its **●**, then click another block to tie
-  them together with a coloured string (the string is the colour of the block it's tied to).
-  When the program reaches the if, it checks whether the tied block **completed** the last time it ran:
-  * yes: the block right under the if runs
-  * no (or it hasn't run yet): the block right under the if is skipped
-  A block "completes" when it finishes normally. `walk N blocks` doesn't complete if a wall stops it early;
-  `walk until wall`, waits, set angle and a successful go to always complete.
-  Right-click the ● to cut the string.
-* **if at x [] z [] → run next**: when the program reaches it, the block right under it only runs if you're
-  standing on that x, z block right then; otherwise that block is skipped. Unlike **stop at**, it only checks
-  when the program gets to it. When you drag it out of the palette, it fills in the spot you're standing on.
-* **random wait** pauses for a different random time (to the nearest 0.1 s) between the two numbers every time it runs. On it, a click changes the number by 0.1 s and Shift + click by 1 s.
-* **Drag** blocks from the left palette into the orange **repeat** block, and drag them up or down to reorder them.
-* **Drag a block back to the palette** to delete it.
-* **Drop-downs (▾)** open a list when you click them:
-  * on walk blocks: the direction (forward / back / left / right), and **until wall** or **blocks**
-  * on the repeat block: **forever** or **times**
-* **Number boxes:** left-click = +1, right-click = -1, hold **Shift** for x10, or use the mouse wheel.
+* **Dragging:** a dark line shows where a block will land: under another block, or inside a repeat / if.
+  Dragging a repeat or if block brings everything inside it along. Drop a block on the palette to delete it.
+* **Motion blocks (blue):** `walk [dir] until wall`, `walk [dir] [5] blocks`, `set angle x [0] y [0]`, `go to x [] y [] z []`.
+* **Control blocks (orange):**
+  * **repeat [forever ▾]** / **repeat [5] [times ▾]**: a C block that runs the blocks inside it over and over.
+  * **if at x [] z []**: a C block. The blocks inside only run if you're standing on that block right then;
+    otherwise the whole section is skipped. Any **if done** tied to it by a string also counts it as not done,
+    so its section is skipped too.
+  * **if done ●**: a C block. Click its ● and then another block to tie them with a string (in that block's colour).
+    The blocks inside only run if the tied block completed the last time it ran. Right-click ● to cut the string.
+  * `wait [1] seconds`, `random wait [0.5] to [2.0] s`, `stop at x [] z []` (stops the script the moment you step on that spot, wherever it sits in the script).
+* A block "completes" when it finishes normally. `walk N blocks` doesn't complete if a wall stops it early;
+  an **if at** completes only when you were on its spot.
+* **Drop-downs (▾)** open a list when you click them. **Number boxes:** click = +1, right-click = -1, Shift = x10, or scroll.
+* When you drag out **go to**, **stop at** or **if at**, it fills in the spot you're standing on.
+* A script with no repeat runs once from top to bottom, then stops ("finished").
 * Buttons: **Stop**, **Reset** (back to one left/right script), **Done**.
 
 Your scripts are saved automatically to `.minecraft/config/lanewalker.txt`.
@@ -58,4 +40,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-3.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-4.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

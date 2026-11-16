@@ -53,8 +53,20 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static Path configFile;
 
     private static boolean running = false;
-    private static int stepIndex = 0;
-    private static int tripsDone = 0;
+    /** Where the script is: one frame per list being run (the script, then any repeat / if inside it). */
+    private static final java.util.ArrayDeque<Frame> stack = new java.util.ArrayDeque<>();
+
+    private static final class Frame {
+        final java.util.List<Program.Step> list;
+        final Program.Step owner;     // the repeat / if this list is inside, or null for the script itself
+        int index = 0;
+        int trips = 0;                // for repeat blocks: loops finished
+
+        Frame(java.util.List<Program.Step> list, Program.Step owner) {
+            this.list = list;
+            this.owner = owner;
+        }
+    }
     private static int cooldown = 0;
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
@@ -130,23 +142,35 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         program = script;
         running = true;
-        tripsDone = 0;
         outcomes.clear();
+        stack.clear();
+        stack.push(new Frame(script.steps, null));
         wasAtStopSpot = atStopSpot(client.player) != null;   // only stop when you *arrive* at a spot
-        startStep(client, 0);
+        settle(client);
     }
 
     public static void stop(MinecraftClient client, String why) {
         if (!running) return;
         running = false;
         controllingVertical = false;
+        stack.clear();
         KeyBinding.updatePressedStates(); // hand movement keys back to the real keyboard
         say(client, Text.literal("Lane Walker: " + why).formatted(Formatting.YELLOW));
     }
 
-    private static void startStep(MinecraftClient client, int index) {
-        stepIndex = index;
-        Program.Step step = program.steps.get(index);
+    private static Program.Step current() {
+        Frame f = stack.peek();
+        return f == null || f.index >= f.list.size() ? null : f.list.get(f.index);
+    }
+
+    private static Program.Dir currentWalkDir() {
+        Program.Step s = current();
+        return s != null && s.kind.isWalk() ? s.dir : null;
+    }
+
+    /** Set up the block that just became current (it's never a repeat / if). */
+    private static void startStep(MinecraftClient client) {
+        Program.Step step = current();
         cooldown = WALL_COOLDOWN;
         goBest = Double.MAX_VALUE;
         goStuck = 0;
@@ -161,33 +185,93 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         ClientPlayerEntity p = client.player;
         legStart = new Vec3d(p.getX(), p.getY(), p.getZ());
-        String trip = program.repeats > 0
-                ? "  (trip " + (tripsDone + 1) + "/" + program.repeats + ")"
-                : "  (trip " + (tripsDone + 1) + ")";
+
+        String loop = "";
+        for (Frame f : stack) {              // innermost repeat first
+            if (f.owner != null && f.owner.kind == Program.Kind.REPEAT) {
+                loop = f.owner.amount > 0
+                        ? "  (loop " + (f.trips + 1) + "/" + f.owner.amount + ")"
+                        : "  (loop " + (f.trips + 1) + ")";
+                break;
+            }
+        }
         say(client, Text.literal("Lane Walker: ").formatted(Formatting.YELLOW)
                 .append(Text.literal(desc).formatted(Formatting.WHITE))
-                .append(Text.literal(trip).formatted(Formatting.GRAY)));
+                .append(Text.literal(loop).formatted(Formatting.GRAY)));
     }
 
-    /** Record whether the current block completed, then move on. */
+    /** Record whether the current block completed, then move on. Returns false if the script ended. */
     private static boolean finish(MinecraftClient client, boolean completed) {
-        outcomes.put(program.steps.get(stepIndex).id, completed);
-        return advance(client);
+        Program.Step cur = current();
+        if (cur != null) outcomes.put(cur.id, completed);
+        return next(client) && settle(client);
     }
 
-    /** Move on to the next block; returns false if the program finished. */
-    private static boolean advance(MinecraftClient client) {
-        int next = stepIndex + 1;
-        if (next >= program.steps.size()) {
-            tripsDone++;
-            if (program.repeats > 0 && tripsDone >= program.repeats) {
-                stop(client, "done (" + tripsDone + (tripsDone == 1 ? " round trip)" : " round trips)"));
+    /** Step past the current block, leaving / looping repeat and if blocks as needed. */
+    private static boolean next(MinecraftClient client) {
+        while (true) {
+            Frame f = stack.peek();
+            if (f == null) {
+                stop(client, "finished");
                 return false;
             }
-            next = 0;
+            f.index++;
+            if (f.index < f.list.size()) return true;
+            if (f.owner != null && f.owner.kind == Program.Kind.REPEAT) {
+                f.trips++;
+                if (f.owner.amount == 0 || f.trips < f.owner.amount) {
+                    f.index = 0;             // go round again
+                    return true;
+                }
+            }
+            stack.pop();                     // finished this list; carry on after its repeat / if
+            if (f.owner != null) outcomes.put(f.owner.id, true);
+            if (stack.isEmpty()) {
+                stop(client, "finished");
+                return false;
+            }
         }
-        startStep(client, next);
-        return true;
+    }
+
+    /**
+     * Make sure the current block is a normal block: go inside repeat / if blocks,
+     * or skip them when their condition is false. Returns false if the script ended.
+     */
+    private static boolean settle(MinecraftClient client) {
+        for (int guard = 0; guard < 200; guard++) {
+            Program.Step s = current();
+            if (s == null) {
+                if (!next(client)) return false;
+                continue;
+            }
+            if (!s.kind.isContainer()) {
+                startStep(client);
+                return true;
+            }
+            boolean enter;
+            switch (s.kind) {
+                case IF_AT -> {              // standing on that x, z block right now?
+                    ClientPlayerEntity pl = client.player;
+                    enter = MathHelper.floor(pl.getX()) == s.amount && MathHelper.floor(pl.getZ()) == s.amount2;
+                    outcomes.put(s.id, enter);   // anything tied to it by a string sees this
+                }
+                case IF -> {                 // did the block on the end of the string complete?
+                    Program.Step linked = s.link >= 0 ? program.byId(s.link) : null;
+                    enter = linked != null && outcomes.getOrDefault(linked.id, false);
+                    outcomes.put(s.id, enter);
+                }
+                default -> {                 // REPEAT
+                    enter = true;
+                    if (s.children.isEmpty()) outcomes.put(s.id, true);
+                }
+            }
+            if (enter && !s.children.isEmpty()) {
+                stack.push(new Frame(s.children, s));
+            } else if (!next(client)) {      // skip the whole section
+                return false;
+            }
+        }
+        return true;   // lots of empty / skipped sections in a row: keep going next tick
     }
 
     private static void onTick(MinecraftClient client) {
@@ -231,7 +315,10 @@ public class LaneWalkerClient implements ClientModInitializer {
             return;
         }
         if (client.currentScreen != null) return; // don't walk while a menu is open
-        if (stepIndex >= program.steps.size()) stepIndex = 0;
+        if (current() == null || current().kind.isContainer()) {
+            if (!settle(client)) return;
+            if (current() == null || current().kind.isContainer()) return;
+        }
 
         // "stop at x z" blocks are checked every tick, wherever they are in the script
         Program.Step spot = atStopSpot(player);
@@ -241,7 +328,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         wasAtStopSpot = spot != null;
 
-        Program.Step step = program.steps.get(stepIndex);
+        Program.Step step = current();
         Program.Dir walkDir = null;
         boolean goToActive = false, wantJump = false, wantSneak = false;
 
@@ -256,8 +343,7 @@ public class LaneWalkerClient implements ClientModInitializer {
 
                 if (arrived) {
                     if (!finish(client, true)) return;
-                    Program.Step now = program.steps.get(stepIndex);
-                    walkDir = now.kind.isWalk() ? now.dir : null;
+                    walkDir = currentWalkDir();
                     break;
                 }
 
@@ -291,27 +377,9 @@ public class LaneWalkerClient implements ClientModInitializer {
                     wantJump = player.horizontalCollision && player.isOnGround();   // hop up steps
                 }
             }
-            case IF, IF_AT -> {
-                boolean cond;
-                if (step.kind == Program.Kind.IF_AT) {   // standing on that x, z block right now?
-                    cond = MathHelper.floor(player.getX()) == step.amount
-                            && MathHelper.floor(player.getZ()) == step.amount2;
-                } else {
-                    Program.Step linked = step.link >= 0 ? program.byId(step.link) : null;
-                    cond = linked != null && outcomes.getOrDefault(linked.id, false);
-                }
-                if (!finish(client, true)) return;
-                if (!cond) {                  // condition false: skip the block under the "if"
-                    outcomes.put(program.steps.get(stepIndex).id, false);
-                    if (!advance(client)) return;
-                }
-                Program.Step now = program.steps.get(stepIndex);
-                walkDir = now.kind.isWalk() ? now.dir : null;
-            }
             case STOP_AT -> {                 // nothing to do in order; it's checked every tick above
                 if (!finish(client, true)) return;
-                Program.Step now = program.steps.get(stepIndex);
-                walkDir = now.kind.isWalk() ? now.dir : null;
+                walkDir = currentWalkDir();
             }
             case SET_ANGLE -> {
                 float yaw = MathHelper.wrapDegrees((float) step.amount);
@@ -320,8 +388,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                 player.setPitch(pitch);
                 player.setHeadYaw(yaw);
                 if (!finish(client, true)) return;
-                Program.Step now = program.steps.get(stepIndex);
-                walkDir = now.kind.isWalk() ? now.dir : null;
+                walkDir = currentWalkDir();
             }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
@@ -343,8 +410,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                         // "until wall" completes at a wall; "N blocks" only completes if it went the full distance
                         boolean completed = step.kind == Program.Kind.WALK_WALL || distance;
                         if (!finish(client, completed)) return;
-                        Program.Step now = program.steps.get(stepIndex);
-                        walkDir = now.kind.isWalk() ? now.dir : null;
+                        walkDir = currentWalkDir();
                     }
                 }
             }
@@ -366,7 +432,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     /** The "stop at" block whose spot the player is standing on, or null. */
     private static Program.Step atStopSpot(ClientPlayerEntity player) {
         int bx = MathHelper.floor(player.getX()), bz = MathHelper.floor(player.getZ());
-        for (Program.Step s : program.steps) {
+        for (Program.Step s : program.allSteps()) {
             if (s.kind == Program.Kind.STOP_AT && s.amount == bx && s.amount2 == bz) return s;
         }
         return null;

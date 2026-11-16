@@ -22,7 +22,7 @@ public class Workspace {
 
     /** The script a block belongs to, or null. */
     public Program scriptOf(Program.Step step) {
-        for (Program p : scripts) if (p.steps.contains(step)) return p;
+        for (Program p : scripts) if (p.parentListOf(step) != null) return p;
         return null;
     }
 
@@ -46,6 +46,7 @@ public class Workspace {
                 if (parts.length == 0 || parts[0].isEmpty()) continue;
                 if (parts[0].equals("script") && parts.length == 2) {
                     if (w.scripts.size() >= MAX_SCRIPTS) break;
+                    if (current != null) current.finishLoading();
                     current = new Program();
                     current.key = Integer.parseInt(parts[1]);
                     w.scripts.add(current);
@@ -57,6 +58,7 @@ public class Workspace {
                 }
                 current.readLine(parts);
             }
+            if (current != null) current.finishLoading();
             if (w.scripts.isEmpty()) return defaults();
             return w;
         } catch (Exception e) {
