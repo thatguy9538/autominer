@@ -85,7 +85,10 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static final java.util.Map<BlockPos, Boolean> containerFull = new java.util.HashMap<>();
     private static BlockPos openContainerPos = null;      // container that's open right now (if we know where)
     private static Boolean lastContainerFull = null;       // the most recently opened container
-    private static boolean containerWasOpen = false;   // "hold key" block: pressed it yet?
+    private static boolean containerWasOpen = false;
+    /** Ticks to wait after closing a full container before running the next block. */
+    private static int resumeDelay = 0;
+    private static final int CLOSE_DELAY = 20;     // 1 second   // "hold key" block: pressed it yet?
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
@@ -158,6 +161,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         program = script;
         running = true;
+        resumeDelay = 0;
         outcomes.clear();
         stack.clear();
         stack.push(new Frame(script.steps, null));
@@ -311,12 +315,34 @@ public class LaneWalkerClient implements ClientModInitializer {
             case IF_WALL -> touchingWall(client);
             case IF_HOLDING -> Registries.ITEM.getId(pl.getMainHandStack().getItem()).toString().equals(s.text);
             case IF_INV_FULL -> pl.getInventory().getEmptySlot() == -1;
-            case IF_CONTAINER_FULL -> containerIsFull(client);
+            case IF_CONTAINER_FULL -> {
+                boolean full = containerIsFull(client);
+                if (full && isContainerOpen(client)) {     // close it, then carry on 1 second later
+                    pl.closeHandledScreen();
+                    containerWasOpen = false;
+                    resumeDelay = CLOSE_DELAY;
+                }
+                yield full;
+            }
             case IF_LOOKING -> s.text.equals(lookedAtBlock(client));
             case IF_HEALTH -> pl.getHealth() < s.amount * 2f;
             case IF_Y -> s.mode == 1 ? pl.getY() > s.amount : pl.getY() < s.amount;
             default -> false;
         };
+    }
+
+    private static boolean isContainerOpen(MinecraftClient client) {
+        ClientPlayerEntity pl = client.player;
+        return pl != null && client.currentScreen instanceof HandledScreen<?> && pl.currentScreenHandler != null
+                && pl.currentScreenHandler != pl.playerScreenHandler;
+    }
+
+    private static void releaseMovement(MinecraftClient client) {
+        GameOptions o = client.options;
+        o.forwardKey.setPressed(false);
+        o.backKey.setPressed(false);
+        o.leftKey.setPressed(false);
+        o.rightKey.setPressed(false);
     }
 
     /** Remember how full each container is while it's open (the game only sends what's inside then). */
@@ -346,6 +372,7 @@ public class LaneWalkerClient implements ClientModInitializer {
 
     /** The open container, else the one you're looking at, else the last one you opened. */
     private static boolean containerIsFull(MinecraftClient client) {
+        if (isContainerOpen(client) && lastContainerFull != null) return lastContainerFull;   // the open one
         if (client.crosshairTarget instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
             Boolean seen = containerFull.get(bhr.getBlockPos());
             if (seen != null) return seen;
@@ -420,7 +447,14 @@ public class LaneWalkerClient implements ClientModInitializer {
             stop(client, "stopped (you died)");
             return;
         }
-        if (client.currentScreen != null) return; // don't walk while a menu is open
+        // menus pause the script, except containers (chests etc.), so it can check and close them
+        boolean containerOpen = isContainerOpen(client);
+        if (client.currentScreen != null && !containerOpen) return;
+        if (resumeDelay > 0) {                    // just closed a full container: wait a moment
+            resumeDelay--;
+            releaseMovement(client);
+            return;
+        }
         if (current() == null || current().kind.isContainer()) {
             if (!settle(client)) return;
             if (current() == null || current().kind.isContainer()) return;
@@ -435,6 +469,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         wasAtStopSpot = spot != null;
 
         Program.Step step = current();
+        if (containerOpen && (step.kind.isWalk() || step.kind == Program.Kind.GO_TO)) return;   // can't move in a chest
         Program.Dir walkDir = null;
         boolean goToActive = false, wantJump = false, wantSneak = false;
 
