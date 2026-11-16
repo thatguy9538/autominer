@@ -17,6 +17,13 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.registry.Registries;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.sound.SoundEvents;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
@@ -227,8 +234,15 @@ public class LaneWalkerClient implements ClientModInitializer {
                     return true;
                 }
             }
+            if (f.owner != null && f.owner.kind == Program.Kind.REPEAT_UNTIL) {
+                f.trips++;
+                if (!atSpot(client.player, f.owner)) {
+                    f.index = 0;             // not there yet: go round again
+                    return true;
+                }
+            }
             stack.pop();                     // finished this list; carry on after its repeat / if
-            if (f.owner != null) outcomes.put(f.owner.id, true);
+            if (f.owner != null && !f.owner.kind.isConditional()) outcomes.put(f.owner.id, true);
             if (stack.isEmpty()) {
                 stop(client, "finished");
                 return false;
@@ -251,30 +265,75 @@ public class LaneWalkerClient implements ClientModInitializer {
                 startStep(client);
                 return true;
             }
-            boolean enter;
-            switch (s.kind) {
-                case IF_AT -> {              // standing on that x, z block right now?
-                    ClientPlayerEntity pl = client.player;
-                    enter = MathHelper.floor(pl.getX()) == s.amount && MathHelper.floor(pl.getZ()) == s.amount2;
-                    outcomes.put(s.id, enter);   // anything tied to it by a string sees this
-                }
-                case IF -> {                 // did the block on the end of the string complete?
-                    Program.Step linked = s.link >= 0 ? program.byId(s.link) : null;
-                    enter = linked != null && outcomes.getOrDefault(linked.id, false);
-                    outcomes.put(s.id, enter);
-                }
-                default -> {                 // REPEAT
-                    enter = true;
-                    if (s.children.isEmpty()) outcomes.put(s.id, true);
-                }
+            java.util.List<Program.Step> section = null;
+            if (s.kind.isConditional()) {
+                boolean cond = check(client, s);
+                outcomes.put(s.id, cond);    // anything tied to it by a string sees this
+                section = cond ? s.children : (s.hasElse ? s.elseChildren : null);
+            } else if (s.kind == Program.Kind.REPEAT_UNTIL) {
+                if (atSpot(client.player, s)) outcomes.put(s.id, true);   // already there: skip
+                else section = s.children;
+            } else {                         // REPEAT
+                section = s.children;
+                if (section.isEmpty()) outcomes.put(s.id, true);
             }
-            if (enter && !s.children.isEmpty()) {
-                stack.push(new Frame(s.children, s));
+            if (section != null && !section.isEmpty()) {
+                stack.push(new Frame(section, s));
             } else if (!next(client)) {      // skip the whole section
                 return false;
             }
         }
         return true;   // lots of empty / skipped sections in a row: keep going next tick
+    }
+
+    /** Is the player standing on this block's x, z spot? */
+    private static boolean atSpot(ClientPlayerEntity pl, Program.Step s) {
+        return MathHelper.floor(pl.getX()) == s.amount && MathHelper.floor(pl.getZ()) == s.amount2;
+    }
+
+    /** The condition of an if block. */
+    private static boolean check(MinecraftClient client, Program.Step s) {
+        ClientPlayerEntity pl = client.player;
+        return switch (s.kind) {
+            case IF_AT -> atSpot(pl, s) != (s.mode == 1);
+            case IF -> {                     // did the block on the end of the string complete?
+                Program.Step linked = s.link >= 0 ? program.byId(s.link) : null;
+                yield linked != null && outcomes.getOrDefault(linked.id, false);
+            }
+            case IF_WALL -> touchingWall(client);
+            case IF_HOLDING -> Registries.ITEM.getId(pl.getMainHandStack().getItem()).toString().equals(s.text);
+            case IF_INV_FULL -> pl.getInventory().getEmptySlot() == -1;
+            case IF_LOOKING -> s.text.equals(lookedAtBlock(client));
+            case IF_HEALTH -> pl.getHealth() < s.amount * 2f;
+            case IF_Y -> s.mode == 1 ? pl.getY() > s.amount : pl.getY() < s.amount;
+            default -> false;
+        };
+    }
+
+    /** Is there a solid block right in front of the player (at feet or head height)? */
+    private static boolean touchingWall(MinecraftClient client) {
+        ClientPlayerEntity pl = client.player;
+        Direction facing = pl.getHorizontalFacing();
+        BlockPos feet = pl.getBlockPos().offset(facing);
+        for (BlockPos p : new BlockPos[]{feet, feet.up()}) {
+            if (!client.world.getBlockState(p).getCollisionShape(client.world, p).isEmpty()) return true;
+        }
+        return false;
+    }
+
+    /** Id of the block under the crosshair, e.g. "minecraft:stone", or "" if none. */
+    static String lookedAtBlock(MinecraftClient client) {
+        if (client.world != null && client.crosshairTarget instanceof BlockHitResult bhr
+                && bhr.getType() == HitResult.Type.BLOCK) {
+            return Registries.BLOCK.getId(client.world.getBlockState(bhr.getBlockPos()).getBlock()).toString();
+        }
+        return "";
+    }
+
+    /** Id of the item in the player's main hand, e.g. "minecraft:diamond_pickaxe". */
+    static String heldItem(MinecraftClient client) {
+        if (client.player == null) return "";
+        return Registries.ITEM.getId(client.player.getMainHandStack().getItem()).toString();
     }
 
     private static void onTick(MinecraftClient client) {
@@ -404,6 +463,51 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (!finish(client, true)) return;
                     walkDir = currentWalkDir();
                 }
+            }
+            case WAIT_UNTIL -> {
+                if (atSpot(player, step)) {
+                    if (!finish(client, true)) return;
+                    walkDir = currentWalkDir();
+                }
+            }
+            case STOP_SCRIPT -> {
+                stop(client, "stopped by a stop script block");
+                return;
+            }
+            case RUN_SCRIPT -> {
+                Program target = null;
+                for (Program p : workspace.scripts) if (p.key == step.amount && !p.steps.isEmpty()) target = p;
+                if (target != null) {
+                    start(client, target);            // switches to that script
+                    return;
+                }
+                if (!finish(client, false)) return;   // no script on that key: skip
+                walkDir = currentWalkDir();
+            }
+            case SELECT_SLOT -> {
+                player.getInventory().setSelectedSlot(step.amount - 1);
+                if (!finish(client, true)) return;
+                walkDir = currentWalkDir();
+            }
+            case SAY -> {
+                client.inGameHud.getChatHud().addMessage(Text.literal("[Lane Walker] ").formatted(Formatting.GOLD)
+                        .append(Text.literal(step.text).formatted(Formatting.WHITE)));
+                if (!finish(client, true)) return;
+                walkDir = currentWalkDir();
+            }
+            case SOUND -> {
+                PositionedSoundInstance sound = switch (step.amount) {
+                    case 1 -> PositionedSoundInstance.master(SoundEvents.BLOCK_NOTE_BLOCK_CHIME, 1.0f);
+                    case 2 -> PositionedSoundInstance.master(SoundEvents.ENTITY_PLAYER_LEVELUP, 1.0f);
+                    default -> PositionedSoundInstance.master(SoundEvents.BLOCK_NOTE_BLOCK_BELL, 1.0f);
+                };
+                client.getSoundManager().play(sound);
+                if (!finish(client, true)) return;
+                walkDir = currentWalkDir();
+            }
+            case COMMENT -> {                 // notes don't do anything
+                if (!finish(client, true)) return;
+                walkDir = currentWalkDir();
             }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {

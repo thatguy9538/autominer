@@ -1,11 +1,15 @@
 package com.example.lanewalker;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * One script: "when [key] pressed" followed by a list of blocks. Repeat and if
- * blocks are "C" blocks that hold their own list of blocks inside them.
+ * blocks are "C" blocks that hold their own list of blocks inside them; if
+ * blocks can also have an "else" list.
  */
 public class Program {
 
@@ -18,20 +22,52 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF, IF_AT, REPEAT, HOLD_KEY;
+        // motion
+        WALK_WALL, WALK_BLOCKS, SET_ANGLE, GO_TO,
+        // control
+        REPEAT, REPEAT_UNTIL, IF_AT, IF_WALL, IF, WAIT, WAIT_RANDOM, WAIT_UNTIL, STOP_AT, STOP_SCRIPT, RUN_SCRIPT,
+        // inventory
+        SELECT_SLOT, IF_HOLDING, IF_INV_FULL,
+        // sensing
+        IF_LOOKING, IF_HEALTH, IF_Y,
+        // keys
+        HOLD_KEY,
+        // other
+        SAY, SOUND, COMMENT;
 
         public boolean isWalk() { return this == WALK_WALL || this == WALK_BLOCKS; }
 
-        /** Orange "Control" blocks (everything else is blue "Motion"). */
-        public boolean isControl() {
-            return isWait() || this == STOP_AT || this == IF || this == IF_AT || this == REPEAT;
+        public boolean isWait() { return this == WAIT || this == WAIT_RANDOM || this == WAIT_UNTIL; }
+
+        /** If blocks: they check something and can have an "else" section. */
+        public boolean isConditional() {
+            return this == IF || this == IF_AT || this == IF_WALL || this == IF_HOLDING || this == IF_INV_FULL
+                    || this == IF_LOOKING || this == IF_HEALTH || this == IF_Y;
         }
 
-        public boolean isWait() { return this == WAIT || this == WAIT_RANDOM; }
-
         /** "C" blocks that hold other blocks inside them. */
-        public boolean isContainer() { return this == IF || this == IF_AT || this == REPEAT; }
+        public boolean isContainer() { return isConditional() || this == REPEAT || this == REPEAT_UNTIL; }
+
+        /** Blocks whose two numbers are an x, z block position. */
+        public boolean usesXZ() {
+            return this == STOP_AT || this == IF_AT || this == REPEAT_UNTIL || this == WAIT_UNTIL;
+        }
+
+        public Category category() {
+            return switch (this) {
+                case WALK_WALL, WALK_BLOCKS, SET_ANGLE, GO_TO -> Category.MOTION;
+                case SELECT_SLOT, IF_HOLDING, IF_INV_FULL -> Category.INVENTORY;
+                case IF_LOOKING, IF_HEALTH, IF_Y, HOLD_KEY -> Category.SENSING;
+                case SAY, SOUND -> Category.SOUND;
+                case COMMENT -> Category.NOTE;
+                default -> Category.CONTROL;
+            };
+        }
     }
+
+    public enum Category { MOTION, CONTROL, INVENTORY, SENSING, SOUND, NOTE }
+
+    public static final List<String> SOUND_NAMES = List.of("ding", "chime", "level up");
 
     public static class Step {
         public Kind kind;
@@ -39,19 +75,29 @@ public class Program {
         /** WAIT / WALK_BLOCKS: the number.
          *  WAIT_RANDOM: amount = min, amount2 = max, in tenths of a second.
          *  SET_ANGLE:   amount = yaw (x), amount2 = pitch (y), in degrees.
-         *  STOP_AT, IF_AT: amount = block X, amount2 = block Z.
+         *  STOP_AT, IF_AT, REPEAT_UNTIL, WAIT_UNTIL: amount = block X, amount2 = block Z.
          *  GO_TO:       amount = X, amount2 = Y, amount3 = Z.
          *  REPEAT:      amount = times, 0 = forever.
-         *  HOLD_KEY:    amount = key code, amount2 = tenths of a second, amount3 = 1 for a mouse button. */
+         *  HOLD_KEY:    amount = key code, amount2 = tenths of a second, amount3 = 1 for a mouse button.
+         *  RUN_SCRIPT:  amount = the other script's key.
+         *  SELECT_SLOT: amount = 1-9.   IF_HEALTH: amount = hearts.   IF_Y: amount = y level.
+         *  SOUND:       amount = which sound. */
         public int amount;
         public int amount2;
         public int amount3;
+        /** IF_AT: 0 = at, 1 = not at.  IF_Y: 0 = below, 1 = above. */
+        public int mode;
+        /** SAY / COMMENT: the words.  IF_HOLDING: item id.  IF_LOOKING: block id. */
+        public String text = "";
         /** Unique id, so "if" strings survive reordering. */
         public int id;
         /** IF only: id of the linked block, or -1. */
         public int link = -1;
-        /** Blocks inside a REPEAT / IF / IF_AT. */
+        /** Blocks inside a C block. */
         public final List<Step> children = new ArrayList<>();
+        /** If blocks: whether they have an "else" section, and the blocks in it. */
+        public boolean hasElse = false;
+        public final List<Step> elseChildren = new ArrayList<>();
 
         public Step(Kind kind, Dir dir, int amount) {
             this(kind, dir, amount, amount);
@@ -70,8 +116,18 @@ public class Program {
             this.id = nextId++;
         }
 
+        public Step withText(String t) {
+            this.text = t;
+            return this;
+        }
+
         /** A fresh copy with its own id (used when dragging out of the palette). */
-        public Step copy() { return new Step(kind, dir, amount, amount2, amount3); }
+        public Step copy() {
+            Step c = new Step(kind, dir, amount, amount2, amount3);
+            c.mode = mode;
+            c.text = text;
+            return c;
+        }
 
         public String describe() {
             return switch (kind) {
@@ -79,19 +135,34 @@ public class Program {
                 case WALK_BLOCKS -> "walk " + dir.label() + " " + amount + (amount == 1 ? " block" : " blocks");
                 case WAIT -> "wait " + amount + (amount == 1 ? " second" : " seconds");
                 case WAIT_RANDOM -> "random wait " + tenths(amount) + " to " + tenths(amount2) + " s";
+                case WAIT_UNTIL -> "wait until at x " + amount + " z " + amount2;
                 case SET_ANGLE -> "set angle x " + amount + " y " + amount2;
                 case STOP_AT -> "stop at x " + amount + " z " + amount2;
                 case GO_TO -> "go to " + amount + " " + amount2 + " " + amount3;
                 case IF -> "if linked block is done";
-                case IF_AT -> "if at x " + amount + " z " + amount2;
+                case IF_AT -> "if " + (mode == 1 ? "not at" : "at") + " x " + amount + " z " + amount2;
+                case IF_WALL -> "if touching wall";
                 case REPEAT -> amount == 0 ? "repeat forever" : "repeat " + amount + " times";
+                case REPEAT_UNTIL -> "repeat until at x " + amount + " z " + amount2;
+                case STOP_SCRIPT -> "stop script";
+                case RUN_SCRIPT -> "run [" + LaneWalkerClient.keyName(amount) + "] script";
                 case HOLD_KEY -> "hold " + inputName(amount, amount3 == 1) + " for " + tenths(amount2) + " s";
+                case SELECT_SLOT -> "select slot " + amount;
+                case IF_HOLDING -> "if holding " + prettyId(text);
+                case IF_INV_FULL -> "if inventory full";
+                case IF_LOOKING -> "if looking at " + prettyId(text);
+                case IF_HEALTH -> "if health below " + amount;
+                case IF_Y -> "if y " + (mode == 1 ? "above " : "below ") + amount;
+                case SAY -> "say " + text;
+                case SOUND -> "play sound " + SOUND_NAMES.get(clamp(amount, 0, SOUND_NAMES.size() - 1));
+                case COMMENT -> "note: " + text;
             };
         }
     }
 
     public static final int MAX_STEPS = 30;
     public static final int MAX_AMOUNT = 999;
+    public static final int MAX_TEXT = 40;
     public static final int COORD_LIMIT = 30_000_000;
     public static final int MIN_Y = -2048, MAX_Y = 4096;
     /** Longest random wait, in tenths of a second (60 s). */
@@ -109,6 +180,14 @@ public class Program {
             };
         }
         return LaneWalkerClient.keyName(code);
+    }
+
+    /** "minecraft:diamond_pickaxe" -> "diamond pickaxe". */
+    public static String prettyId(String id) {
+        if (id == null || id.isEmpty()) return "?";
+        String s = id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
+        if (s.equals("air")) return "nothing";
+        return s.replace('_', ' ');
     }
 
     public static String tenths(int t) {
@@ -130,6 +209,7 @@ public class Program {
         for (Step s : list) {
             out.add(s);
             collect(s.children, out);
+            collect(s.elseChildren, out);
         }
     }
 
@@ -147,6 +227,8 @@ public class Program {
         for (Step s : list) {
             if (s == step) return list;
             List<Step> inside = findParent(s.children, step);
+            if (inside != null) return inside;
+            inside = findParent(s.elseChildren, step);
             if (inside != null) return inside;
         }
         return null;
@@ -177,11 +259,57 @@ public class Program {
         }
     }
 
+    /** Keep a block's numbers in range (used when loading). */
+    static void sanitize(Step s) {
+        switch (s.kind) {
+            case GO_TO -> {
+                s.amount = clamp(s.amount, -COORD_LIMIT, COORD_LIMIT);
+                s.amount2 = clamp(s.amount2, MIN_Y, MAX_Y);
+                s.amount3 = clamp(s.amount3, -COORD_LIMIT, COORD_LIMIT);
+            }
+            case STOP_AT, IF_AT, REPEAT_UNTIL, WAIT_UNTIL -> {
+                s.amount = clamp(s.amount, -COORD_LIMIT, COORD_LIMIT);
+                s.amount2 = clamp(s.amount2, -COORD_LIMIT, COORD_LIMIT);
+            }
+            case SET_ANGLE -> {
+                s.amount = clamp(s.amount, -180, 180);
+                s.amount2 = clamp(s.amount2, -90, 90);
+            }
+            case WAIT_RANDOM -> {
+                s.amount = clamp(s.amount, 0, MAX_TENTHS);
+                s.amount2 = clamp(s.amount2, 0, MAX_TENTHS);
+            }
+            case HOLD_KEY -> {
+                s.amount = clamp(s.amount, 0, 400);
+                s.amount2 = clamp(s.amount2, 1, MAX_TENTHS);
+                s.amount3 = clamp(s.amount3, 0, 1);
+            }
+            case REPEAT -> s.amount = clamp(s.amount, 0, 100000);
+            case SELECT_SLOT -> s.amount = clamp(s.amount, 1, 9);
+            case IF_HEALTH -> s.amount = clamp(s.amount, 1, 20);
+            case IF_Y -> s.amount = clamp(s.amount, MIN_Y, MAX_Y);
+            case SOUND -> s.amount = clamp(s.amount, 0, SOUND_NAMES.size() - 1);
+            case RUN_SCRIPT, IF, IF_WALL, IF_HOLDING, IF_INV_FULL, IF_LOOKING, STOP_SCRIPT, SAY, COMMENT -> { }
+            default -> s.amount = clamp(s.amount, 1, MAX_AMOUNT);
+        }
+        s.mode = clamp(s.mode, 0, 1);
+        if (s.text == null) s.text = "";
+        if (s.text.length() > MAX_TEXT) s.text = s.text.substring(0, MAX_TEXT);
+        if (!s.kind.isConditional()) {
+            s.hasElse = false;
+            s.elseChildren.clear();
+        }
+    }
+
     // ---- saving / loading (see Workspace for the file itself) ----
     //
     //   script <key>
-    //   step <KIND> <DIR> <a> <b> <c> <id> <link>
+    //   step <KIND> <DIR> <a> <b> <c> <id> <link> <mode> ~<text>
     //   {                 <- the blocks inside the C block above
+    //   step ...
+    //   }
+    //   else              <- optional: the C block's "else" section follows
+    //   {
     //   step ...
     //   }
 
@@ -194,41 +322,78 @@ public class Program {
         for (Step s : list) {
             sb.append("step ").append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
                     .append(' ').append(s.amount2).append(' ').append(s.amount3)
-                    .append(' ').append(s.id).append(' ').append(s.link).append('\n');
+                    .append(' ').append(s.id).append(' ').append(s.link)
+                    .append(' ').append(s.mode)
+                    .append(" ~").append(URLEncoder.encode(s.text, StandardCharsets.UTF_8)).append('\n');
             if (s.kind.isContainer()) {
                 sb.append("{\n");
                 writeList(sb, s.children);
                 sb.append("}\n");
+                if (s.hasElse) {
+                    sb.append("else\n{\n");
+                    writeList(sb, s.elseChildren);
+                    sb.append("}\n");
+                }
             }
         }
     }
 
-    // loading state
+    // loading state: the lists being filled, and which block owns each one
     private final List<List<Step>> loadStack = new ArrayList<>();
-    private Step lastLoaded = null;
+    private final List<Step> ownerStack = new ArrayList<>();
+    private Step lastLoaded = null;     // most recent "step" line
+    private Step lastClosed = null;     // C block whose section just ended with "}"
+    private boolean elseNext = false;   // an "else" line: the next "{" is lastClosed's else section
     private int legacyRepeat = -1;      // older saves: the whole script sat in one repeat
     private boolean sawBraces = false;
 
     /** Reads one line of a saved script (also older formats). */
     void readLine(String[] parts) {
-        if (loadStack.isEmpty()) loadStack.add(steps);
+        if (loadStack.isEmpty()) {
+            loadStack.add(steps);
+            ownerStack.add(null);
+        }
         List<Step> target = loadStack.get(loadStack.size() - 1);
 
+        if (parts.length == 1 && parts[0].equals("else")) {
+            elseNext = true;
+            return;
+        }
         if (parts.length == 1 && parts[0].equals("{")) {
             sawBraces = true;
-            if (lastLoaded != null && lastLoaded.kind.isContainer()) loadStack.add(lastLoaded.children);
-            else loadStack.add(new ArrayList<>());          // shouldn't happen; read and throw away
+            if (elseNext && lastClosed != null && lastClosed.kind.isConditional()) {
+                lastClosed.hasElse = true;
+                loadStack.add(lastClosed.elseChildren);
+                ownerStack.add(lastClosed);
+            } else if (lastLoaded != null && lastLoaded.kind.isContainer()) {
+                loadStack.add(lastLoaded.children);
+                ownerStack.add(lastLoaded);
+            } else {
+                loadStack.add(new ArrayList<>());          // shouldn't happen; read and throw away
+                ownerStack.add(null);
+            }
+            elseNext = false;
+            lastLoaded = null;
             return;
         }
         if (parts.length == 1 && parts[0].equals("}")) {
-            if (loadStack.size() > 1) loadStack.remove(loadStack.size() - 1);
+            if (loadStack.size() > 1) {
+                loadStack.remove(loadStack.size() - 1);
+                lastClosed = ownerStack.remove(ownerStack.size() - 1);
+            }
             return;
         }
+        elseNext = false;
 
-        int id = -1, link = -1;
-        if (parts.length == 8 && parts[0].equals("step")) {   // newest format
+        int id = -1, link = -1, mode = 0;
+        String text = "";
+        if (parts.length >= 8 && parts[0].equals("step")) {   // newer formats
             id = Integer.parseInt(parts[6]);
             link = Integer.parseInt(parts[7]);
+            if (parts.length >= 9) mode = Integer.parseInt(parts[8]);
+            if (parts.length >= 10 && parts[9].startsWith("~")) {
+                text = URLDecoder.decode(parts[9].substring(1), StandardCharsets.UTF_8);
+            }
             parts = java.util.Arrays.copyOfRange(parts, 1, 6);
         }
         if (parts.length == 2 && parts[0].equals("repeat")) {
@@ -238,34 +403,15 @@ public class Program {
             int a = Integer.parseInt(parts[2]);
             int b = parts.length >= 4 ? Integer.parseInt(parts[3]) : a;
             int c = parts.length >= 5 ? Integer.parseInt(parts[4]) : 0;
-            if (kind == Kind.GO_TO) {
-                a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
-                b = clamp(b, MIN_Y, MAX_Y);
-                c = clamp(c, -COORD_LIMIT, COORD_LIMIT);
-            } else if (kind == Kind.STOP_AT || kind == Kind.IF_AT) {
-                a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
-                b = clamp(b, -COORD_LIMIT, COORD_LIMIT);
-            } else if (kind == Kind.SET_ANGLE) {
-                a = clamp(a, -180, 180);
-                b = clamp(b, -90, 90);
-            } else if (kind == Kind.WAIT_RANDOM) {
-                a = clamp(a, 0, MAX_TENTHS);
-                b = clamp(b, 0, MAX_TENTHS);
-            } else if (kind == Kind.HOLD_KEY) {
-                a = clamp(a, 0, 400);
-                b = clamp(b, 1, MAX_TENTHS);
-                c = clamp(c, 0, 1);
-            } else if (kind == Kind.REPEAT) {
-                a = clamp(a, 0, 100000);
-            } else if (kind != Kind.IF) {
-                a = clamp(a, 1, MAX_AMOUNT);
-            }
             Step st = new Step(kind, Dir.valueOf(parts[1]), a, b, c);
             if (id > 0) {
                 st.id = id;
                 nextId = Math.max(nextId, id + 1);
             }
             st.link = link;
+            st.mode = mode;
+            st.text = text;
+            sanitize(st);
             target.add(st);
             lastLoaded = st;
         }
@@ -290,6 +436,8 @@ public class Program {
             }
         }
         loadStack.clear();
+        ownerStack.clear();
         lastLoaded = null;
+        lastClosed = null;
     }
 }

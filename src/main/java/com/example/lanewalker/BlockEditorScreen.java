@@ -28,6 +28,9 @@ public class BlockEditorScreen extends Screen {
     private static final int EVENTS = 0xFFFFBF00, EVENTS_DARK = 0xFFCC9900;
     private static final int GREEN = 0xFF59C059;
     private static final int SENSING = 0xFF5CB1D6, SENSING_DARK = 0xFF2E8EB8;
+    private static final int LOOKS = 0xFF9966FF, LOOKS_DARK = 0xFF774DCB;
+    private static final int SOUND = 0xFFCF63CF, SOUND_DARK = 0xFFBD42BD;
+    private static final int NOTE = 0xFF9AA0B4, NOTE_DARK = 0xFF7B8099;
     private static final int PALETTE_BG = 0xFFE9EEF2, SCRIPT_BG = 0xFFF9F9F9, BORDER = 0xFFC6CCD8;
     private static final int WHITE = 0xFFFFFFFF, FIELD_TEXT = 0xFF575E75, HINT = 0xFF6B7290;
     private static final int CAPTURE_BG = 0xFFFFF3B0, DROP_LINE = 0xFF575E75;
@@ -41,7 +44,8 @@ public class BlockEditorScreen extends Screen {
     private static final int SCRIPT_GAP = 30;
 
     private enum HitType {
-        PALETTE, HAT_TEMPLATE, HAT, KEY, HOLDKEY, RUN, BLOCK, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, BUTTON, MENU_ITEM
+        PALETTE, HAT_TEMPLATE, HAT, KEY, HOLDKEY, RUN, BLOCK, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, BUTTON, MENU_ITEM,
+        ATMODE, YMODE, SOUNDSEL, PICK, TEXT, SCRIPTKEY, ELSE_ADD, ELSE_REMOVE
     }
 
     /**
@@ -56,7 +60,8 @@ public class BlockEditorScreen extends Screen {
     /** A place a dragged block could be dropped: position index in a list. */
     private record DropPoint(List<Program.Step> list, int index, int x, int y) {}
 
-    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, KEY, HOLDKEY, RUN }
+    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, KEY, HOLDKEY, RUN,
+        ATMODE, YMODE, SOUNDSEL, PICK, TEXT, SCRIPTKEY }
 
     private record Seg(SegType type, String text) {}
 
@@ -66,24 +71,47 @@ public class BlockEditorScreen extends Screen {
     private static final List<String> DIR_OPTIONS = List.of("forward", "back", "left", "right");
     private static final List<String> WALK_MODE_OPTIONS = List.of("until wall", "blocks");
     private static final List<String> REPEAT_MODE_OPTIONS = List.of("forever", "times");
+    private static final List<String> AT_OPTIONS = List.of("at", "not at");
+    private static final List<String> Y_OPTIONS = List.of("below", "above");
     private static int rememberedRepeats = 5;
     private static final int ITEM_H = 14;
 
     private static final Program.Step[] TEMPLATES = {
+            // motion
             new Program.Step(Program.Kind.WALK_WALL, Program.Dir.LEFT, 5),
             new Program.Step(Program.Kind.WALK_BLOCKS, Program.Dir.RIGHT, 5),
             new Program.Step(Program.Kind.SET_ANGLE, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.GO_TO, Program.Dir.LEFT, 0, 64, 0),
+            // control
             new Program.Step(Program.Kind.REPEAT, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.REPEAT_UNTIL, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.IF_AT, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.IF_WALL, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
+            new Program.Step(Program.Kind.WAIT_UNTIL, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.STOP_SCRIPT, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.RUN_SCRIPT, Program.Dir.LEFT, GLFW.GLFW_KEY_J),
+            // inventory
+            new Program.Step(Program.Kind.SELECT_SLOT, Program.Dir.LEFT, 1),
+            new Program.Step(Program.Kind.IF_HOLDING, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.IF_INV_FULL, Program.Dir.LEFT, 0),
+            // sensing
+            new Program.Step(Program.Kind.IF_LOOKING, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.IF_HEALTH, Program.Dir.LEFT, 5),
+            new Program.Step(Program.Kind.IF_Y, Program.Dir.LEFT, 64),
+            // keys
             new Program.Step(Program.Kind.HOLD_KEY, Program.Dir.LEFT, 0, 10, 1),   // hold left click for 1.0 s
+            // other
+            new Program.Step(Program.Kind.SAY, Program.Dir.LEFT, 0).withText("hello"),
+            new Program.Step(Program.Kind.SOUND, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.COMMENT, Program.Dir.LEFT, 0).withText("my note"),
     };
-    private static final int MOTION_COUNT = 4;
-    private static final int KEYS_START = 10;
+    /** Palette section headings, by the template they come before. */
+    private static final Map<Integer, String> SECTIONS = Map.of(
+            0, "Motion", 4, "Control", 15, "Inventory", 18, "Sensing", 21, "Keys", 22, "Other");
 
     /** Keys handed out to new scripts, in order. */
     private static final int[] DEFAULT_KEYS = {
@@ -104,7 +132,7 @@ public class BlockEditorScreen extends Screen {
         return out;
     }
 
-    private static final String[] BUTTONS = {"■ Stop", "Reset", "Done"};
+    private static final String[] BUTTONS = {"\u25A0 Stop", "Reset", "Done"};
     private static final int[] BUTTON_COLORS = {0xFFFF6680, 0xFF9AA0B4, MOTION};
 
     private List<Hit> hits = new ArrayList<>();
@@ -132,6 +160,8 @@ public class BlockEditorScreen extends Screen {
     private int capturing = -1;
     /** "hold key" block whose key is being picked, or null. */
     private Program.Step capturingStep = null;
+    /** "say" / "note" block whose words are being typed, or null. */
+    private Program.Step editingText = null;
     private final Set<Integer> captureHeld = new HashSet<>();
 
     /** Per frame: block rectangles {x1, y1, x2, color} and "if" sockets {x, y}, by block id. */
@@ -162,13 +192,14 @@ public class BlockEditorScreen extends Screen {
 
     @Override
     public boolean shouldCloseOnEsc() {
-        return capturing < 0 && capturingStep == null;   // while picking a key, Esc cancels instead of closing
+        return capturing < 0 && capturingStep == null && editingText == null;   // while picking a key, Esc cancels instead of closing
     }
 
     @Override
     public void removed() {
         capturing = -1;
         capturingStep = null;
+        editingText = null;
         LaneWalkerClient.saveProgram();
     }
 
@@ -224,13 +255,21 @@ public class BlockEditorScreen extends Screen {
         }
         if (capturingStep != null) {         // "hold key" block: a key OR a mouse button
             boolean middleDown = GLFW.glfwGetMouseButton(h, GLFW.GLFW_MOUSE_BUTTON_MIDDLE) == GLFW.GLFW_PRESS;
-            if (leftDown || rightDown || middleDown) {
+            if ((leftDown || rightDown || middleDown) && capturingStep.kind != Program.Kind.HOLD_KEY) {
+                capturingStep = null;                // "run script" only takes keys: clicking cancels
+            } else if (leftDown || rightDown || middleDown) {
                 capturingStep.amount = leftDown ? 0 : rightDown ? 1 : 2;
                 capturingStep.amount3 = 1;
                 capturingStep = null;
             } else {
                 pollCapture(h);
             }
+            return;
+        }
+
+        if (editingText != null) {           // typing into a "say" / "note" block
+            if (leftDown || rightDown) editingText = null;   // clicking anywhere finishes
+            else pollText(h);
             return;
         }
 
@@ -285,6 +324,38 @@ public class BlockEditorScreen extends Screen {
                 if (leftDown) startCapture(hit.script, h);
                 else if (p != null) p.key = -1;
             }
+            case ATMODE -> openMenu(hit, AT_OPTIONS, s.mode);
+            case YMODE -> openMenu(hit, Y_OPTIONS, s.mode);
+            case SOUNDSEL -> openMenu(hit, Program.SOUND_NAMES, s.amount);
+            case PICK -> {
+                if (leftDown) {                  // use what you're holding / looking at right now
+                    String id = s.kind == Program.Kind.IF_HOLDING
+                            ? LaneWalkerClient.heldItem(client) : LaneWalkerClient.lookedAtBlock(client);
+                    if (!id.isEmpty()) s.text = id;
+                } else {
+                    s.text = "";
+                }
+            }
+            case TEXT -> {
+                if (leftDown) {
+                    startCapture(-1, h);
+                    editingText = s;
+                } else {
+                    s.text = "";
+                }
+            }
+            case SCRIPTKEY -> {
+                if (leftDown) {
+                    startCapture(-1, h);
+                    capturingStep = s;
+                }
+            }
+            case ELSE_ADD -> {
+                if (leftDown) s.hasElse = true;
+            }
+            case ELSE_REMOVE -> {
+                if (leftDown && s.elseChildren.isEmpty()) s.hasElse = false;
+            }
             case HOLDKEY -> {
                 if (leftDown) {
                     startCapture(-1, h);
@@ -315,7 +386,12 @@ public class BlockEditorScreen extends Screen {
             case PALETTE -> {
                 if (leftDown) {
                     Program.Step n = TEMPLATES[hit.index].copy();
-                    if ((n.kind == Program.Kind.STOP_AT || n.kind == Program.Kind.IF_AT) && client.player != null) {
+                    if (n.kind == Program.Kind.IF_Y && client.player != null) {
+                        n.amount = MathHelper.floor(client.player.getY());
+                    }
+                    if (n.kind == Program.Kind.IF_HOLDING) n.text = LaneWalkerClient.heldItem(client);
+                    if (n.kind == Program.Kind.IF_LOOKING) n.text = LaneWalkerClient.lookedAtBlock(client);
+                    if (n.kind.usesXZ() && client.player != null) {
                         n.amount = MathHelper.floor(client.player.getX());   // start at your spot
                         n.amount2 = MathHelper.floor(client.player.getZ());
                     }
@@ -378,6 +454,54 @@ public class BlockEditorScreen extends Screen {
         }
     }
 
+    // ---- typing words into "say" / "note" blocks
+
+    private void pollText(long handle) {
+        boolean shift = shift();
+        for (int k : VALID_KEYS) {
+            boolean down = GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
+            if (!down) {
+                captureHeld.remove(k);
+                continue;
+            }
+            if (!captureHeld.add(k)) continue;           // already held
+            if (k == GLFW.GLFW_KEY_ESCAPE || k == GLFW.GLFW_KEY_ENTER || k == GLFW.GLFW_KEY_KP_ENTER) {
+                editingText = null;
+                return;
+            }
+            String t = editingText.text;
+            if (k == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!t.isEmpty()) editingText.text = t.substring(0, t.length() - 1);
+                continue;
+            }
+            String c = charFor(k, shift);
+            if (c != null && t.length() < Program.MAX_TEXT) editingText.text = t + c;
+        }
+    }
+
+    private static String charFor(int k, boolean shift) {
+        if (k >= GLFW.GLFW_KEY_A && k <= GLFW.GLFW_KEY_Z) {
+            char c = (char) ('a' + (k - GLFW.GLFW_KEY_A));
+            return String.valueOf(shift ? Character.toUpperCase(c) : c);
+        }
+        if (k >= GLFW.GLFW_KEY_0 && k <= GLFW.GLFW_KEY_9) {
+            int d = k - GLFW.GLFW_KEY_0;
+            return shift ? String.valueOf(")!@#$%^&*(".charAt(d)) : String.valueOf((char) ('0' + d));
+        }
+        if (k >= GLFW.GLFW_KEY_KP_0 && k <= GLFW.GLFW_KEY_KP_9) return String.valueOf((char) ('0' + k - GLFW.GLFW_KEY_KP_0));
+        return switch (k) {
+            case GLFW.GLFW_KEY_SPACE -> " ";
+            case GLFW.GLFW_KEY_MINUS -> shift ? "_" : "-";
+            case GLFW.GLFW_KEY_PERIOD -> shift ? ">" : ".";
+            case GLFW.GLFW_KEY_COMMA -> shift ? "<" : ",";
+            case GLFW.GLFW_KEY_SLASH -> shift ? "?" : "/";
+            case GLFW.GLFW_KEY_APOSTROPHE -> shift ? "\"" : "'";
+            case GLFW.GLFW_KEY_SEMICOLON -> shift ? ":" : ";";
+            case GLFW.GLFW_KEY_EQUAL -> shift ? "+" : "=";
+            default -> null;
+        };
+    }
+
     private static int freeKey() {
         for (int k : DEFAULT_KEYS) {
             boolean used = false;
@@ -391,7 +515,7 @@ public class BlockEditorScreen extends Screen {
 
     private void openMenu(Hit hit, List<String> options, int selected) {
         int w = hit.x2 - hit.x1;
-        for (String o : options) w = Math.max(w, textRenderer.getWidth("✔ " + o) + 12);
+        for (String o : options) w = Math.max(w, textRenderer.getWidth("\u2714 " + o) + 12);
         menu = new Menu(hit.type, hit.step, hit.x1, hit.y2 + 1, w, options, selected);
     }
 
@@ -400,6 +524,8 @@ public class BlockEditorScreen extends Screen {
         if (s == null) return;
         switch (m.kind) {
             case DIR -> s.dir = Program.Dir.values()[option];
+            case ATMODE, YMODE -> s.mode = option;
+            case SOUNDSEL -> s.amount = option;
             case MODE -> s.kind = option == 0 ? Program.Kind.WALK_WALL : Program.Kind.WALK_BLOCKS;
             case RMODE -> {
                 if (option == 0) {
@@ -420,8 +546,14 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount(Program.Step s, int delta) {
-        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT || s.kind == Program.Kind.GO_TO) {
+        if (s.kind.usesXZ() || s.kind == Program.Kind.GO_TO) {
             s.amount = Program.clamp(s.amount + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
+        } else if (s.kind == Program.Kind.SELECT_SLOT) {
+            s.amount = Program.clamp(s.amount + delta, 1, 9);
+        } else if (s.kind == Program.Kind.IF_HEALTH) {
+            s.amount = Program.clamp(s.amount + delta, 1, 20);
+        } else if (s.kind == Program.Kind.IF_Y) {
+            s.amount = Program.clamp(s.amount + delta, Program.MIN_Y, Program.MAX_Y);
         } else if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
             int v = s.amount + delta;
             while (v > 180) v -= 360;
@@ -444,7 +576,7 @@ public class BlockEditorScreen extends Screen {
             s.amount2 = Program.clamp(s.amount2 + delta, Program.MIN_Y, Program.MAX_Y);
             return;
         }
-        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT) {
+        if (s.kind.usesXZ()) {
             s.amount2 = Program.clamp(s.amount2 + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
             return;
         }
@@ -510,7 +642,7 @@ public class BlockEditorScreen extends Screen {
         int mx = (int) mouseX, my = (int) mouseY;
         int dir = verticalAmount > 0 ? 1 : verticalAmount < 0 ? -1 : 0;
         if (dir == 0) return false;
-        if (menu != null || capturing >= 0 || capturingStep != null) return true;
+        if (menu != null || capturing >= 0 || capturingStep != null || editingText != null) return true;
         if (inPalette(mx, my)) {
             int max = Math.max(0, palContentHeight - (areaY2() - TOP) + 8);
             palScroll = Program.clamp(palScroll - dir * 16, 0, max);
@@ -555,7 +687,7 @@ public class BlockEditorScreen extends Screen {
         sockets.clear();
         dropPoints.clear();
 
-        ctx.drawCenteredTextWithShadow(textRenderer, "Lane Walker — Block Editor", width / 2, 8, WHITE);
+        ctx.drawCenteredTextWithShadow(textRenderer, "Lane Walker \u2014 Block Editor", width / 2, 8, WHITE);
 
         drawPalette(ctx);
         drawScripts(ctx, mouseX, mouseY);
@@ -589,13 +721,12 @@ public class BlockEditorScreen extends Screen {
         nextHits.add(new Hit(x1 + 6, y - 7, x1 + 6 + hw, y + BH, HitType.HAT_TEMPLATE, -1, null, null, -1));
         y += BH + 8;
 
-        ctx.drawText(textRenderer, "Motion", x1 + 6, y, HINT, false);
-        y += 12;
         tabs.clear();
         for (int i = 0; i < TEMPLATES.length; i++) {
-            if (i == MOTION_COUNT || i == KEYS_START) {
-                y += 3;
-                ctx.drawText(textRenderer, i == MOTION_COUNT ? "Control" : "Keys", x1 + 6, y, HINT, false);
+            String section = SECTIONS.get(i);
+            if (section != null) {
+                if (i > 0) y += 3;
+                ctx.drawText(textRenderer, section, x1 + 6, y, HINT, false);
                 y += 12;
             }
             int[] size = new int[1];
@@ -609,12 +740,15 @@ public class BlockEditorScreen extends Screen {
 
         String[] tips = {
                 "Drag \"when key pressed\"", "out to add a script.",
-                "Click its key to change it,", "▶ runs that script.",
+                "Click its key to change it,", "\u25B6 runs that script.",
                 "Blocks snap under a hat", "or inside repeat / if.",
                 "Drag a block or hat back", "here to delete it.",
-                "Click ▾ to open a list.", "Numbers: click = +1,", "right-click = -1,", "Shift = x10, or scroll.",
-                "If done: click its ●,", "then a block to tie it.", "Right-click ● to untie.",
+                "Click \u25BE to open a list.", "Numbers: click = +1,", "right-click = -1,", "Shift = x10, or scroll.",
+                "If done: click its \u25CF,", "then a block to tie it.", "Right-click \u25CF to untie.",
                 "Hold key: click its key box,", "then press a key or click", "a mouse button.",
+                "If blocks: click \"+ else\" on", "the bottom to add an else.",
+                "If holding / looking at:", "click the box to use what", "you hold / look at now.",
+                "Say / note: click the box,", "type, then press Enter.",
                 "Scroll here for more.",
         };
         for (String tip : tips) {
@@ -630,7 +764,7 @@ public class BlockEditorScreen extends Screen {
         String keyText = p == null ? "?" : capturing == si && si >= 0 ? "press a key" : LaneWalkerClient.keyName(p.key);
         List<Seg> segs = editable
                 ? List.of(new Seg(SegType.LABEL, "when"), new Seg(SegType.KEY, keyText),
-                new Seg(SegType.LABEL, "key pressed"), new Seg(SegType.RUN, "▶"))
+                new Seg(SegType.LABEL, "key pressed"), new Seg(SegType.RUN, "\u25B6"))
                 : List.of(new Seg(SegType.LABEL, "when"), new Seg(SegType.KEY, keyText),
                 new Seg(SegType.LABEL, "key pressed"));
         int w = Math.max(130, segmentsWidth(segs) + 16);
@@ -730,27 +864,62 @@ public class BlockEditorScreen extends Screen {
             return y + BH;
         }
 
-        // a C block: top bar, the blocks inside, then the bottom bar
+        // a C block: top bar, the blocks inside, (an "else" bar and its blocks), then the bottom bar
         int w = Math.max(150, segmentsWidth(segs) + 16);
         ctx.fill(x, y, x + w, y + BH, color);
         ctx.fill(x + 8, y, x + 20, y + 2, bg);               // notch on top
         int innerTop = y + BH;
-        if (!s.children.isEmpty()) tabs.add(new int[]{x + ARM, innerTop, color});   // tab into the first block
-        int innerBottom = drawList(ctx, s.children, x + ARM, innerTop, si, live, bg);
-        if (s.children.isEmpty()) innerBottom = innerTop + EMPTY_C;
-        ctx.fill(x, innerTop, x + ARM, innerBottom, color);                      // left arm
-        ctx.fill(x, innerBottom, x + w, innerBottom + C_BOTTOM, color);          // bottom bar
-        ctx.fill(x, innerBottom + C_BOTTOM - 1, x + w, innerBottom + C_BOTTOM, dark);
-        tabs.add(new int[]{x, innerBottom + C_BOTTOM, color});
+        int innerBottom = drawSection(ctx, s.children, x, innerTop, si, live, bg, color);
         if (live) {
             nextHits.add(0, new Hit(x, y, x + w, innerTop, HitType.BLOCK, si, s, list, -1));
             nextHits.add(0, new Hit(x, innerTop, x + ARM, innerBottom, HitType.BLOCK, si, s, list, -1));
-            nextHits.add(0, new Hit(x, innerBottom, x + w, innerBottom + C_BOTTOM, HitType.BLOCK, si, s, list, -1));
+        }
+        int bottomTop = innerBottom;
+        if (s.hasElse) {
+            ctx.fill(x, innerBottom, x + w, innerBottom + BH, color);           // "else" bar
+            ctx.drawText(textRenderer, "else", x + 8, innerBottom + (BH - 8) / 2, WHITE, false);
+            if (live) {
+                nextHits.add(0, new Hit(x, innerBottom, x + w, innerBottom + BH, HitType.BLOCK, si, s, list, -1));
+                if (s.elseChildren.isEmpty()) {                                // x removes an empty else
+                    int bx = x + w - 20;
+                    pill(ctx, bx, innerBottom + 4, 14, BH - 8, dark);
+                    ctx.drawText(textRenderer, "\u00D7", bx + 4, innerBottom + (BH - 8) / 2, WHITE, false);
+                    nextHits.add(new Hit(bx, innerBottom + 4, bx + 14, innerBottom + BH - 4,
+                            HitType.ELSE_REMOVE, si, s, null, -1));
+                }
+            }
+            int elseTop = innerBottom + BH;
+            int elseBottom = drawSection(ctx, s.elseChildren, x, elseTop, si, live, bg, color);
+            if (live) nextHits.add(0, new Hit(x, elseTop, x + ARM, elseBottom, HitType.BLOCK, si, s, list, -1));
+            bottomTop = elseBottom;
+        }
+        ctx.fill(x, bottomTop, x + w, bottomTop + C_BOTTOM, color);              // bottom bar
+        ctx.fill(x, bottomTop + C_BOTTOM - 1, x + w, bottomTop + C_BOTTOM, dark);
+        tabs.add(new int[]{x, bottomTop + C_BOTTOM, color});
+        if (live) {
+            nextHits.add(0, new Hit(x, bottomTop, x + w, bottomTop + C_BOTTOM, HitType.BLOCK, si, s, list, -1));
             blockRects.put(s.id, new int[]{x, y, x + w, color});
+            if (s.kind.isConditional() && !s.hasElse) {                         // "+ else" button
+                String t = "+ else";
+                int tw = textRenderer.getWidth(t), bx = x + w - tw - 8;
+                ctx.drawText(textRenderer, t, bx, bottomTop + 2, WHITE, false);
+                nextHits.add(new Hit(bx - 2, bottomTop, bx + tw + 2, bottomTop + C_BOTTOM,
+                        HitType.ELSE_ADD, si, s, null, -1));
+            }
         }
         drawSegments(ctx, x + 8, y, segs, si, s, live, dark);
         if (size != null) size[0] = w;
-        return innerBottom + C_BOTTOM;
+        return bottomTop + C_BOTTOM;
+    }
+
+    /** One section inside a C block, with its left arm. Returns the y under it. */
+    private int drawSection(DrawContext ctx, List<Program.Step> section, int x, int top, int si,
+                            boolean live, int bg, int color) {
+        if (!section.isEmpty()) tabs.add(new int[]{x + ARM, top, color});   // tab into the first block
+        int bottom = drawList(ctx, section, x + ARM, top, si, live, bg);
+        if (section.isEmpty()) bottom = top + EMPTY_C;
+        ctx.fill(x, top, x + ARM, bottom, color);                          // left arm
+        return bottom;
     }
 
     /** The coloured "strings" from each "if done" socket in a script to the block it's tied to. */
@@ -791,13 +960,25 @@ public class BlockEditorScreen extends Screen {
     }
 
     private static int colorOf(Program.Step s) {
-        if (s.kind == Program.Kind.HOLD_KEY) return SENSING;
-        return s.kind.isControl() ? CONTROL : MOTION;
+        return switch (s.kind.category()) {
+            case MOTION -> MOTION;
+            case CONTROL -> CONTROL;
+            case INVENTORY -> LOOKS;
+            case SENSING -> SENSING;
+            case SOUND -> SOUND;
+            case NOTE -> NOTE;
+        };
     }
 
     private static int darkOf(Program.Step s) {
-        if (s.kind == Program.Kind.HOLD_KEY) return SENSING_DARK;
-        return s.kind.isControl() ? CONTROL_DARK : MOTION_DARK;
+        return switch (s.kind.category()) {
+            case MOTION -> MOTION_DARK;
+            case CONTROL -> CONTROL_DARK;
+            case INVENTORY -> LOOKS_DARK;
+            case SENSING -> SENSING_DARK;
+            case SOUND -> SOUND_DARK;
+            case NOTE -> NOTE_DARK;
+        };
     }
 
     private void drawMenu(DrawContext ctx, int mx, int my) {
@@ -806,15 +987,15 @@ public class BlockEditorScreen extends Screen {
         int h = m.options.size() * ITEM_H + 4;
         int y = m.y;
         if (y + h > height - 2) y = Math.max(2, m.y - h - 18);   // flip up if it would go off screen
-        int color = m.kind == HitType.RMODE ? CONTROL : MOTION;
-        int dark = m.kind == HitType.RMODE ? CONTROL_DARK : MOTION_DARK;
+        int color = m.step != null ? colorOf(m.step) : MOTION;
+        int dark = m.step != null ? darkOf(m.step) : MOTION_DARK;
         ctx.fill(m.x - 1, y - 1, m.x + m.w + 1, y + h + 1, dark);
         ctx.fill(m.x, y, m.x + m.w, y + h, color);
         for (int i = 0; i < m.options.size(); i++) {
             int iy = y + 2 + i * ITEM_H;
             boolean hover = mx >= m.x && mx < m.x + m.w && my >= iy && my < iy + ITEM_H;
             if (hover) ctx.fill(m.x + 1, iy, m.x + m.w - 1, iy + ITEM_H, dark);
-            String label = (i == m.selected ? "✔ " : "    ") + m.options.get(i);
+            String label = (i == m.selected ? "\u2714 " : "    ") + m.options.get(i);
             ctx.drawText(textRenderer, label, m.x + 4, iy + 3, WHITE, false);
             nextHits.add(new Hit(m.x, iy, m.x + m.w, iy + ITEM_H, HitType.MENU_ITEM, -1, null, null, i));
         }
@@ -854,9 +1035,35 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.RMODE, "times"));
             case IF -> List.of(new Seg(SegType.LABEL, "if"), new Seg(SegType.LABEL, "done"),
                     new Seg(SegType.LINK, ""));
-            case IF_AT -> List.of(new Seg(SegType.LABEL, "if at x"),
+            case IF_AT -> List.of(new Seg(SegType.LABEL, "if"), new Seg(SegType.ATMODE, s.mode == 1 ? "not at" : "at"),
+                    new Seg(SegType.LABEL, "x"), new Seg(SegType.NUM, String.valueOf(s.amount)),
+                    new Seg(SegType.LABEL, "z"), new Seg(SegType.NUM2, String.valueOf(s.amount2)));
+            case IF_WALL -> List.of(new Seg(SegType.LABEL, "if touching wall"));
+            case REPEAT_UNTIL -> List.of(new Seg(SegType.LABEL, "repeat until at x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)));
+            case WAIT_UNTIL -> List.of(new Seg(SegType.LABEL, "wait until at x"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)));
+            case STOP_SCRIPT -> List.of(new Seg(SegType.LABEL, "stop script"));
+            case RUN_SCRIPT -> List.of(new Seg(SegType.LABEL, "run"),
+                    new Seg(SegType.SCRIPTKEY, capturingStep == s ? "press a key" : LaneWalkerClient.keyName(s.amount)),
+                    new Seg(SegType.LABEL, "script"));
+            case SELECT_SLOT -> List.of(new Seg(SegType.LABEL, "select slot"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)));
+            case IF_HOLDING -> List.of(new Seg(SegType.LABEL, "if holding"),
+                    new Seg(SegType.PICK, s.text.isEmpty() ? "click: held item" : Program.prettyId(s.text)));
+            case IF_INV_FULL -> List.of(new Seg(SegType.LABEL, "if inventory full"));
+            case IF_LOOKING -> List.of(new Seg(SegType.LABEL, "if looking at"),
+                    new Seg(SegType.PICK, s.text.isEmpty() ? "click: block" : Program.prettyId(s.text)));
+            case IF_HEALTH -> List.of(new Seg(SegType.LABEL, "if health below"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "\u2764"));
+            case IF_Y -> List.of(new Seg(SegType.LABEL, "if y"), new Seg(SegType.YMODE, s.mode == 1 ? "above" : "below"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)));
+            case SAY -> List.of(new Seg(SegType.LABEL, "say"), new Seg(SegType.TEXT, textShown(s)));
+            case SOUND -> List.of(new Seg(SegType.LABEL, "play sound"),
+                    new Seg(SegType.SOUNDSEL, Program.SOUND_NAMES.get(Program.clamp(s.amount, 0, 2))));
+            case COMMENT -> List.of(new Seg(SegType.LABEL, "note:"), new Seg(SegType.TEXT, textShown(s)));
             case GO_TO -> List.of(new Seg(SegType.LABEL, "go to x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "z"),
@@ -878,11 +1085,17 @@ public class BlockEditorScreen extends Screen {
         };
     }
 
+    private String textShown(Program.Step s) {
+        if (editingText == s) return s.text + "_";
+        return s.text.isEmpty() ? "click to type" : s.text;
+    }
+
     private int segWidth(Seg seg) {
         return switch (seg.type) {
             case LABEL -> textRenderer.getWidth(seg.text);
-            case DIR, MODE, RMODE -> textRenderer.getWidth(seg.text + " ▾") + 10;
-            case NUM, NUM2, NUM3, REPEAT, KEY, HOLDKEY -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
+            case DIR, MODE, RMODE, ATMODE, YMODE, SOUNDSEL -> textRenderer.getWidth(seg.text + " \u25BE") + 10;
+            case NUM, NUM2, NUM3, REPEAT, KEY, HOLDKEY, PICK, TEXT, SCRIPTKEY ->
+                    Math.max(20, textRenderer.getWidth(seg.text) + 12);
             case LINK -> 14;
             case RUN -> 16;
         };
@@ -904,11 +1117,17 @@ public class BlockEditorScreen extends Screen {
             int fy1 = y + 4, fy2 = y + BH - 4;
             switch (seg.type) {
                 case LABEL -> ctx.drawText(textRenderer, seg.text, tx, ty, WHITE, false);
-                case DIR, MODE, RMODE -> {
+                case DIR, MODE, RMODE, ATMODE, YMODE, SOUNDSEL -> {
                     pill(ctx, tx, fy1, w, BH - 8, dark);
-                    ctx.drawText(textRenderer, seg.text + " ▾", tx + 5, ty, WHITE, false);
-                    HitType ht = seg.type == SegType.DIR ? HitType.DIR
-                            : seg.type == SegType.MODE ? HitType.MODE : HitType.RMODE;
+                    ctx.drawText(textRenderer, seg.text + " \u25BE", tx + 5, ty, WHITE, false);
+                    HitType ht = switch (seg.type) {
+                        case DIR -> HitType.DIR;
+                        case MODE -> HitType.MODE;
+                        case ATMODE -> HitType.ATMODE;
+                        case YMODE -> HitType.YMODE;
+                        case SOUNDSEL -> HitType.SOUNDSEL;
+                        default -> HitType.RMODE;
+                    };
                     if (editable && step != null) nextHits.add(new Hit(tx, fy1, tx + w, fy2, ht, si, step, null, -1));
                 }
                 case LINK -> {
@@ -929,9 +1148,11 @@ public class BlockEditorScreen extends Screen {
                             WHITE, false);
                     if (editable && p != null) nextHits.add(new Hit(tx, fy1, tx + w, fy2, HitType.RUN, si, null, null, -1));
                 }
-                case NUM, NUM2, NUM3, REPEAT, KEY, HOLDKEY -> {
+                case NUM, NUM2, NUM3, REPEAT, KEY, HOLDKEY, PICK, TEXT, SCRIPTKEY -> {
                     boolean picking = (seg.type == SegType.KEY && capturing == si && si >= 0)
-                            || (seg.type == SegType.HOLDKEY && step != null && capturingStep == step);
+                            || ((seg.type == SegType.HOLDKEY || seg.type == SegType.SCRIPTKEY)
+                                && step != null && capturingStep == step)
+                            || (seg.type == SegType.TEXT && step != null && editingText == step);
                     pill(ctx, tx, fy1, w, BH - 8, picking ? CAPTURE_BG : WHITE);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             FIELD_TEXT, false);
@@ -942,6 +1163,9 @@ public class BlockEditorScreen extends Screen {
                         case NUM3 -> HitType.NUM3;
                         case REPEAT -> HitType.REPEAT;
                         case HOLDKEY -> HitType.HOLDKEY;
+                        case PICK -> HitType.PICK;
+                        case TEXT -> HitType.TEXT;
+                        case SCRIPTKEY -> HitType.SCRIPTKEY;
                         default -> HitType.KEY;
                     };
                     if (ht == HitType.KEY ? p != null : step != null)
