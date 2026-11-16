@@ -17,7 +17,7 @@ Build a walking program out of Scratch-style blocks, then run it.
   Click the green **▶** on a script to run it right away. Drag a script's hat block back to the palette to delete the whole script.
   Only one script moves you at a time: pressing another script's key switches to it.
   "If" strings only connect blocks inside the same script.
-* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `go to x [] y [] z []`, `stop at x [0] z [0]`, `if done → run next ●`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
+* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `go to x [] y [] z []`, `stop at x [0] z [0]`, `if done → run next ●`, `if at x [] z [] → run next`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
 * **set angle x [0] y [0]** turns you to face an exact direction, like the F3 "Facing" numbers.
   x = left/right (0 south, 90 west, 180 north, -90 east); y = up/down (-90 up, 0 level, 90 down).
   Because walk directions are relative to where you look, use it to point yourself before walking.
@@ -40,6 +40,9 @@ Build a walking program out of Scratch-style blocks, then run it.
   A block "completes" when it finishes normally. `walk N blocks` doesn't complete if a wall stops it early;
   `walk until wall`, waits, set angle and a successful go to always complete.
   Right-click the ● to cut the string.
+* **if at x [] z [] → run next**: when the program reaches it, the block right under it only runs if you're
+  standing on that x, z block right then; otherwise that block is skipped. Unlike **stop at**, it only checks
+  when the program gets to it. When you drag it out of the palette, it fills in the spot you're standing on.
 * **random wait** pauses for a different random time (to the nearest 0.1 s) between the two numbers every time it runs. On it, a click changes the number by 0.1 s and Shift + click by 1 s.
 * **Drag** blocks from the left palette into the orange **repeat** block, and drag them up or down to reorder them.
 * **Drag a block back to the palette** to delete it.
@@ -55,4 +58,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-3.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-3.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

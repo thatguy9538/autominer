@@ -291,9 +291,15 @@ public class LaneWalkerClient implements ClientModInitializer {
                     wantJump = player.horizontalCollision && player.isOnGround();   // hop up steps
                 }
             }
-            case IF -> {
-                Program.Step linked = step.link >= 0 ? program.byId(step.link) : null;
-                boolean cond = linked != null && outcomes.getOrDefault(linked.id, false);
+            case IF, IF_AT -> {
+                boolean cond;
+                if (step.kind == Program.Kind.IF_AT) {   // standing on that x, z block right now?
+                    cond = MathHelper.floor(player.getX()) == step.amount
+                            && MathHelper.floor(player.getZ()) == step.amount2;
+                } else {
+                    Program.Step linked = step.link >= 0 ? program.byId(step.link) : null;
+                    cond = linked != null && outcomes.getOrDefault(linked.id, false);
+                }
                 if (!finish(client, true)) return;
                 if (!cond) {                  // condition false: skip the block under the "if"
                     outcomes.put(program.steps.get(stepIndex).id, false);

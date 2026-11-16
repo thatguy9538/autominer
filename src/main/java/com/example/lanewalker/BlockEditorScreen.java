@@ -35,7 +35,7 @@ public class BlockEditorScreen extends Screen {
     private static final int BH = 22;      // stack block height
     private static final int ARM = 14;     // width of the repeat block's left arm
     private static final int TOP = 24;
-    private static final int PAL_X = 8, PAL_W = 176;
+    private static final int PAL_X = 8, PAL_W = 186;
     private static final int SCRIPT_GAP = 30;
 
     private enum HitType {
@@ -69,6 +69,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
             new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
             new Program.Step(Program.Kind.IF, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.IF_AT, Program.Dir.LEFT, 0, 0),
     };
     private static final int MOTION_COUNT = 4;
 
@@ -284,7 +285,8 @@ public class BlockEditorScreen extends Screen {
             case PALETTE -> {
                 if (leftDown) {
                     Program.Step s = TEMPLATES[hit.index].copy();
-                    if (s.kind == Program.Kind.STOP_AT && client.player != null) {   // start at your spot
+                    if ((s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT)
+                            && client.player != null) {   // start at your spot
                         s.amount = MathHelper.floor(client.player.getX());
                         s.amount2 = MathHelper.floor(client.player.getZ());
                     }
@@ -378,7 +380,7 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount(Program.Step s, int delta) {
-        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.GO_TO) {
+        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT || s.kind == Program.Kind.GO_TO) {
             s.amount = Program.clamp(s.amount + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
         } else if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
             int v = s.amount + delta;
@@ -398,7 +400,7 @@ public class BlockEditorScreen extends Screen {
             s.amount2 = Program.clamp(s.amount2 + delta, Program.MIN_Y, Program.MAX_Y);
             return;
         }
-        if (s.kind == Program.Kind.STOP_AT) {
+        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.IF_AT) {
             s.amount2 = Program.clamp(s.amount2 + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
             return;
         }
@@ -763,6 +765,9 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
             case IF -> List.of(new Seg(SegType.LABEL, "if"), new Seg(SegType.LABEL, "done"),
                     new Seg(SegType.LABEL, "→ run next"), new Seg(SegType.LINK, ""));
+            case IF_AT -> List.of(new Seg(SegType.LABEL, "if at x"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "\u2192 run next"));
             case GO_TO -> List.of(new Seg(SegType.LABEL, "go to x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "z"),

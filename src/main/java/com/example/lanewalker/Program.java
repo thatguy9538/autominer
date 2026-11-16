@@ -15,12 +15,12 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF;
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF, IF_AT;
 
         public boolean isWalk() { return this == WALK_WALL || this == WALK_BLOCKS; }
 
         /** Orange "Control" blocks (everything else is blue "Motion"). */
-        public boolean isControl() { return isWait() || this == STOP_AT || this == IF; }
+        public boolean isControl() { return isWait() || this == STOP_AT || this == IF || this == IF_AT; }
 
         public boolean isWait() { return this == WAIT || this == WAIT_RANDOM; }
     }
@@ -32,6 +32,7 @@ public class Program {
         /** WAIT_RANDOM: amount = min, amount2 = max, in tenths of a second.
          *  SET_ANGLE:   amount = yaw (x), amount2 = pitch (y), in degrees.
          *  STOP_AT:     amount = block X, amount2 = block Z.
+         *  IF_AT:       amount = block X, amount2 = block Z.
          *  GO_TO:       amount = X, amount2 = Y, amount3 = Z. */
         public int amount2;
         public int amount3;
@@ -70,6 +71,7 @@ public class Program {
                 case STOP_AT -> "stop at x " + amount + " z " + amount2;
                 case GO_TO -> "go to " + amount + " " + amount2 + " " + amount3;
                 case IF -> "if linked block is done, run next";
+                case IF_AT -> "if at x " + amount + " z " + amount2 + ", run next";
             };
         }
     }
@@ -135,7 +137,7 @@ public class Program {
                 a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
                 b = clamp(b, MIN_Y, MAX_Y);
                 c = clamp(c, -COORD_LIMIT, COORD_LIMIT);
-            } else if (kind == Kind.STOP_AT) {
+            } else if (kind == Kind.STOP_AT || kind == Kind.IF_AT) {
                 a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
                 b = clamp(b, -COORD_LIMIT, COORD_LIMIT);
             } else if (kind == Kind.SET_ANGLE) {
