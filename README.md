@@ -38,6 +38,8 @@ Build a walking program out of Scratch-style blocks, then run it.
   **if container full** (a C block) checks the chest / barrel / shulker etc. you have open; if none is open, the one
   you're looking at, using what was in it the last time you opened it (the game only shows what's inside a
   container while it's open). A container you haven't opened yet counts as not full.
+  It also works in **server menus** (chest-style screens like storage or backpacks): glass panes and barriers are
+  treated as menu decoration / buttons, not storage, so only the real storage slots decide whether it's full.
   If the container is **open and full**, the block **closes it**, waits **1 second**, then runs the blocks inside.
   For **if holding**, click the box to use the item in your hand right now (right-click clears it).
 * **Sensing blocks (light blue):** **if looking at [block]** (click the box to use the block under your crosshair),
@@ -66,4 +68,4 @@ It pauses while a menu is open and stops if you die. Containers (chests, barrels
 exception: the script keeps running while one is open, except walk and go to blocks, which wait until it's closed.
 
 ## Install
-Put `lanewalker-5.3.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

@@ -352,13 +352,17 @@ public class LaneWalkerClient implements ClientModInitializer {
         boolean open = client.currentScreen instanceof HandledScreen<?> && handler != null
                 && handler != pl.playerScreenHandler;
         if (open && !containerWasOpen) {          // just opened: it's the block we were looking at
-            openContainerPos = client.crosshairTarget instanceof BlockHitResult bhr
-                    && bhr.getType() == HitResult.Type.BLOCK ? bhr.getBlockPos().toImmutable() : null;
+            openContainerPos = null;
+            if (client.crosshairTarget instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK
+                    && client.world.getBlockEntity(bhr.getBlockPos()) != null) {   // a real chest / barrel etc.
+                openContainerPos = bhr.getBlockPos().toImmutable();
+            }                                     // otherwise it's a server menu opened some other way
         }
         if (open) {
             boolean any = false, full = true;
             for (Slot slot : handler.slots) {
                 if (slot.inventory == pl.getInventory()) continue;   // skip your own inventory
+                if (slot.hasStack() && isMenuFiller(slot.getStack())) continue;   // server menu decoration
                 any = true;
                 if (!slot.hasStack()) full = false;
             }
@@ -368,6 +372,12 @@ public class LaneWalkerClient implements ClientModInitializer {
             }
         }
         containerWasOpen = open;
+    }
+
+    /** Glass panes and barriers: what server menus use as filler and "close" buttons, not storage. */
+    private static boolean isMenuFiller(net.minecraft.item.ItemStack stack) {
+        String path = Registries.ITEM.getId(stack.getItem()).getPath();
+        return path.endsWith("glass_pane") || path.equals("barrier");
     }
 
     /** The open container, else the one you're looking at, else the last one you opened. */
