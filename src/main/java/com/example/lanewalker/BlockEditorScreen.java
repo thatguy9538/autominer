@@ -30,13 +30,13 @@ public class BlockEditorScreen extends Screen {
     private static final int TOP = 24;
     private static final int PAL_X = 8, PAL_W = 176;
 
-    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, NUM2, REPEAT, RMODE, BUTTON, MENU_ITEM }
+    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, NUM2, NUM3, REPEAT, RMODE, BUTTON, MENU_ITEM }
 
     private record Hit(int x1, int y1, int x2, int y2, HitType type, int index) {
         boolean contains(int x, int y) { return x >= x1 && x < x2 && y >= y1 && y < y2; }
     }
 
-    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, REPEAT, RMODE }
+    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, REPEAT, RMODE }
 
     /** An open drop-down list. */
     private record Menu(HitType kind, int index, int x, int y, int w, List<String> options, int selected) {}
@@ -53,6 +53,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.WALK_WALL, Program.Dir.LEFT, 5),
             new Program.Step(Program.Kind.WALK_BLOCKS, Program.Dir.RIGHT, 5),
             new Program.Step(Program.Kind.SET_ANGLE, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.GO_TO, Program.Dir.LEFT, 0, 64, 0),
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
             new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
@@ -158,6 +159,7 @@ public class BlockEditorScreen extends Screen {
             case MENU_ITEM -> { }
             case NUM -> changeAmount(p.steps.get(hit.index), sign * step);
             case NUM2 -> changeAmount2(p.steps.get(hit.index), sign * step);
+            case NUM3 -> changeAmount3(p.steps.get(hit.index), sign * step);
             case REPEAT -> changeRepeats(sign * step);
             case PALETTE -> {
                 if (leftDown) {
@@ -165,6 +167,11 @@ public class BlockEditorScreen extends Screen {
                     if (s.kind == Program.Kind.STOP_AT && client.player != null) {   // start at your spot
                         s.amount = net.minecraft.util.math.MathHelper.floor(client.player.getX());
                         s.amount2 = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+                    }
+                    if (s.kind == Program.Kind.GO_TO && client.player != null) {
+                        s.amount = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+                        s.amount2 = net.minecraft.util.math.MathHelper.floor(client.player.getY());
+                        s.amount3 = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
                     }
                     startDrag(s, hit, mx, my);
                 }
@@ -201,8 +208,12 @@ public class BlockEditorScreen extends Screen {
         }
     }
 
+    private void changeAmount3(Program.Step s, int delta) {
+        s.amount3 = Program.clamp(s.amount3 + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
+    }
+
     private void changeAmount(Program.Step s, int delta) {
-        if (s.kind == Program.Kind.STOP_AT) {
+        if (s.kind == Program.Kind.STOP_AT || s.kind == Program.Kind.GO_TO) {
             s.amount = Program.clamp(s.amount + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
         } else if (s.kind == Program.Kind.SET_ANGLE) {            // yaw wraps around
             int v = s.amount + delta;
@@ -218,6 +229,10 @@ public class BlockEditorScreen extends Screen {
     }
 
     private void changeAmount2(Program.Step s, int delta) {
+        if (s.kind == Program.Kind.GO_TO) {
+            s.amount2 = Program.clamp(s.amount2 + delta, Program.MIN_Y, Program.MAX_Y);
+            return;
+        }
         if (s.kind == Program.Kind.STOP_AT) {
             s.amount2 = Program.clamp(s.amount2 + delta, -Program.COORD_LIMIT, Program.COORD_LIMIT);
             return;
@@ -283,6 +298,10 @@ public class BlockEditorScreen extends Screen {
             changeAmount(program().steps.get(hit.index), dir * (shift() ? 10 : 1));
             return true;
         }
+        if (hit != null && hit.type == HitType.NUM3) {
+            changeAmount3(program().steps.get(hit.index), dir * (shift() ? 10 : 1));
+            return true;
+        }
         if (hit != null && hit.type == HitType.NUM2) {
             changeAmount2(program().steps.get(hit.index), dir * (shift() ? 10 : 1));
             return true;
@@ -339,17 +358,17 @@ public class BlockEditorScreen extends Screen {
         int y = y1 + 6;
         ctx.drawText(textRenderer, "Motion", x1 + 6, y, HINT, false);
         y += 12;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, false, PALETTE_BG);
             nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, i));
-            y += BH + 8;
+            y += BH + 5;
         }
         ctx.drawText(textRenderer, "Control", x1 + 6, y, HINT, false);
         y += 12;
-        for (int i = 3; i < TEMPLATES.length; i++) {
+        for (int i = 4; i < TEMPLATES.length; i++) {
             int w = drawStackBlock(ctx, x1 + 6, y, TEMPLATES[i], -1, false, PALETTE_BG);
             nextHits.add(new Hit(x1 + 6, y, x1 + 6 + w, y + BH, HitType.PALETTE, i));
-            y += BH + 8;
+            y += BH + 5;
         }
         y += 6;
 
@@ -489,6 +508,10 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case GO_TO -> List.of(new Seg(SegType.LABEL, "go to x"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
+                    new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "z"),
+                    new Seg(SegType.NUM3, String.valueOf(s.amount3)));
             case STOP_AT -> List.of(new Seg(SegType.LABEL, "stop at x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "z"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)));
@@ -520,7 +543,7 @@ public class BlockEditorScreen extends Screen {
         return switch (seg.type) {
             case LABEL -> textRenderer.getWidth(seg.text);
             case DIR, MODE, RMODE -> textRenderer.getWidth(seg.text + " ▾") + 10;
-            case NUM, NUM2, REPEAT -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
+            case NUM, NUM2, NUM3, REPEAT -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
         };
     }
 
@@ -544,12 +567,14 @@ public class BlockEditorScreen extends Screen {
                     if (editable && (index >= 0 || ht == HitType.RMODE))
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, ht, index));
                 }
-                case NUM, NUM2, REPEAT -> {
+                case NUM, NUM2, NUM3, REPEAT -> {
                     pill(ctx, tx, y + 4, w, BH - 8, WHITE);
                     ctx.drawText(textRenderer, seg.text, tx + (w - textRenderer.getWidth(seg.text)) / 2, ty,
                             FIELD_TEXT, false);
                     if (editable && seg.type == SegType.NUM && index >= 0)
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.NUM, index));
+                    if (editable && seg.type == SegType.NUM3 && index >= 0)
+                        nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.NUM3, index));
                     if (editable && seg.type == SegType.NUM2 && index >= 0)
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, HitType.NUM2, index));
                     if (editable && seg.type == SegType.REPEAT)

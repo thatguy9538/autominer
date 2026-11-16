@@ -10,11 +10,16 @@ Build a walking program out of Scratch-style blocks, then run it.
 | `/walk edit`, `/walk run`, `/walk stop` | Same, from chat |
 
 ## The block editor
-* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `stop at x [0] z [0]`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
+* **Blocks:** `walk [left] until wall`, `walk [right] [5] blocks`, `set angle x [0] y [0]`, `go to x [] y [] z []`, `stop at x [0] z [0]`, `wait [1] seconds` and `random wait [0.5] to [2.0] s`.
 * **set angle x [0] y [0]** turns you to face an exact direction, like the F3 "Facing" numbers.
   x = left/right (0 south, 90 west, 180 north, -90 east); y = up/down (-90 up, 0 level, 90 down).
   Because walk directions are relative to where you look, use it to point yourself before walking.
   Click = +1°, right-click = -1°, Shift = 10°, or scroll.
+* **go to x [] y [] z []** takes you to that block, then moves on to the next block.
+  If the game lets you fly (Creative, or a server that allows `/fly`), it turns flying on and flies there.
+  Otherwise it walks there on the ground (ignoring y) and hops up 1-block steps.
+  It stops the program if it can't get any closer for 10 seconds.
+  When you drag it out of the palette, it fills in the spot you're standing on.
 * **stop at x [0] z [0]** stops the whole program as soon as you step onto that block.
   x and z are the first and third numbers of "XYZ" on the F3 screen (y is height, so it's ignored).
   It works wherever you put it in the script, and you can use more than one.
@@ -35,4 +40,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-2.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-2.5.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

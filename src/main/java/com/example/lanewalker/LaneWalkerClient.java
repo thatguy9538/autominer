@@ -55,6 +55,10 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
     private static boolean wasAtStopSpot = false;
+    private static boolean controllingVertical = false;   // jump / sneak keys held by "go to"
+    private static double goBest = Double.MAX_VALUE;      // closest "go to" has got so far
+    private static int goStuck = 0;                        // ticks without getting closer
+    private static final int GO_STUCK_LIMIT = 200;         // 10 seconds
     private static final java.util.Random RANDOM = new java.util.Random();
 
     @Override
@@ -116,6 +120,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     public static void stop(MinecraftClient client, String why) {
         if (!running) return;
         running = false;
+        controllingVertical = false;
         KeyBinding.updatePressedStates(); // hand movement keys back to the real keyboard
         say(client, Text.literal("Lane Walker: " + why).formatted(Formatting.YELLOW));
     }
@@ -124,6 +129,8 @@ public class LaneWalkerClient implements ClientModInitializer {
         stepIndex = index;
         Program.Step step = program.steps.get(index);
         cooldown = WALL_COOLDOWN;
+        goBest = Double.MAX_VALUE;
+        goStuck = 0;
         String desc = step.describe();
         if (step.kind == Program.Kind.WAIT_RANDOM) {
             int lo = Math.min(step.amount, step.amount2), hi = Math.max(step.amount, step.amount2);
@@ -194,8 +201,54 @@ public class LaneWalkerClient implements ClientModInitializer {
 
         Program.Step step = program.steps.get(stepIndex);
         Program.Dir walkDir = null;
+        boolean goToActive = false, wantJump = false, wantSneak = false;
 
         switch (step.kind) {
+            case GO_TO -> {
+                double dx = step.amount + 0.5 - player.getX();
+                double dy = step.amount2 - player.getY();
+                double dz = step.amount3 + 0.5 - player.getZ();
+                double h = Math.sqrt(dx * dx + dz * dz);
+                boolean canFly = player.getAbilities().allowFlying;
+                boolean arrived = h < 0.6 && (!canFly || Math.abs(dy) < 0.6);
+
+                if (arrived) {
+                    if (!advance(client)) return;
+                    Program.Step now = program.steps.get(stepIndex);
+                    walkDir = now.kind.isWalk() ? now.dir : null;
+                    break;
+                }
+
+                double dist = canFly ? Math.sqrt(h * h + dy * dy) : h;
+                if (dist < goBest - 0.05) {
+                    goBest = dist;
+                    goStuck = 0;
+                } else if (++goStuck > GO_STUCK_LIMIT) {
+                    stop(client, "couldn't get to " + step.amount + " " + step.amount2 + " " + step.amount3
+                            + ", stopped");
+                    return;
+                }
+
+                // only fly when the game lets you (creative, or a server that allows flying)
+                if (canFly && !player.getAbilities().flying) {
+                    player.getAbilities().flying = true;
+                    player.sendAbilitiesUpdate();
+                }
+
+                if (h >= 0.6) {
+                    float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+                    player.setYaw(yaw);
+                    player.setHeadYaw(yaw);
+                    walkDir = Program.Dir.FORWARD;
+                }
+                goToActive = true;
+                if (player.getAbilities().flying) {
+                    wantJump = dy > 0.4;     // fly up
+                    wantSneak = dy < -0.4;   // fly down
+                } else {
+                    wantJump = player.horizontalCollision && player.isOnGround();   // hop up steps
+                }
+            }
             case STOP_AT -> {                 // nothing to do in order; it's checked every tick above
                 if (!advance(client)) return;
                 Program.Step now = program.steps.get(stepIndex);
@@ -236,6 +289,12 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
 
         GameOptions o = client.options;
+        if (controllingVertical && !goToActive) KeyBinding.updatePressedStates();   // give jump/sneak back
+        if (goToActive) {
+            o.jumpKey.setPressed(wantJump);
+            o.sneakKey.setPressed(wantSneak);
+        }
+        controllingVertical = goToActive;
         o.forwardKey.setPressed(walkDir == Program.Dir.FORWARD);
         o.backKey.setPressed(walkDir == Program.Dir.BACK);
         o.leftKey.setPressed(walkDir == Program.Dir.LEFT);

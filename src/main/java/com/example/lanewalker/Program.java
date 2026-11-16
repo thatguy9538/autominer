@@ -19,7 +19,7 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT;
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO;
 
         public boolean isWalk() { return this == WALK_WALL || this == WALK_BLOCKS; }
 
@@ -32,21 +32,28 @@ public class Program {
         public int amount;
         /** WAIT_RANDOM: amount = min, amount2 = max, in tenths of a second.
          *  SET_ANGLE:   amount = yaw (x), amount2 = pitch (y), in degrees.
-         *  STOP_AT:     amount = block X, amount2 = block Z. */
+         *  STOP_AT:     amount = block X, amount2 = block Z.
+         *  GO_TO:       amount = X, amount2 = Y, amount3 = Z. */
         public int amount2;
+        public int amount3;
 
         public Step(Kind kind, Dir dir, int amount) {
             this(kind, dir, amount, amount);
         }
 
         public Step(Kind kind, Dir dir, int amount, int amount2) {
+            this(kind, dir, amount, amount2, 0);
+        }
+
+        public Step(Kind kind, Dir dir, int amount, int amount2, int amount3) {
             this.kind = kind;
             this.dir = dir;
             this.amount = amount;
             this.amount2 = amount2;
+            this.amount3 = amount3;
         }
 
-        public Step copy() { return new Step(kind, dir, amount, amount2); }
+        public Step copy() { return new Step(kind, dir, amount, amount2, amount3); }
 
         public String describe() {
             return switch (kind) {
@@ -56,6 +63,7 @@ public class Program {
                 case WAIT_RANDOM -> "random wait " + tenths(amount) + " to " + tenths(amount2) + " s";
                 case SET_ANGLE -> "set angle x " + amount + " y " + amount2;
                 case STOP_AT -> "stop at x " + amount + " z " + amount2;
+                case GO_TO -> "go to " + amount + " " + amount2 + " " + amount3;
             };
         }
     }
@@ -63,6 +71,7 @@ public class Program {
     public static final int MAX_STEPS = 30;
     public static final int MAX_AMOUNT = 999;
     public static final int COORD_LIMIT = 30_000_000;
+    public static final int MIN_Y = -2048, MAX_Y = 4096;
     /** Longest random wait, in tenths of a second (60 s). */
     public static final int MAX_TENTHS = 600;
 
@@ -87,7 +96,7 @@ public class Program {
         StringBuilder sb = new StringBuilder("repeat ").append(repeats).append('\n');
         for (Step s : steps) {
             sb.append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
-                    .append(' ').append(s.amount2).append('\n');
+                    .append(' ').append(s.amount2).append(' ').append(s.amount3).append('\n');
         }
         try {
             Files.createDirectories(file.getParent());
@@ -104,11 +113,16 @@ public class Program {
                 String[] parts = line.trim().split("\\s+");
                 if (parts.length == 2 && parts[0].equals("repeat")) {
                     p.repeats = clamp(Integer.parseInt(parts[1]), 0, 100000);
-                } else if ((parts.length == 3 || parts.length == 4) && p.steps.size() < MAX_STEPS) {
+                } else if (parts.length >= 3 && parts.length <= 5 && p.steps.size() < MAX_STEPS) {
                     Kind kind = Kind.valueOf(parts[0]);
                     int a = Integer.parseInt(parts[2]);
-                    int b = parts.length == 4 ? Integer.parseInt(parts[3]) : a;
-                    if (kind == Kind.STOP_AT) {
+                    int b = parts.length >= 4 ? Integer.parseInt(parts[3]) : a;
+                    int c = parts.length >= 5 ? Integer.parseInt(parts[4]) : 0;
+                    if (kind == Kind.GO_TO) {
+                        a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
+                        b = clamp(b, MIN_Y, MAX_Y);
+                        c = clamp(c, -COORD_LIMIT, COORD_LIMIT);
+                    } else if (kind == Kind.STOP_AT) {
                         a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
                         b = clamp(b, -COORD_LIMIT, COORD_LIMIT);
                     } else if (kind == Kind.SET_ANGLE) {
@@ -120,7 +134,7 @@ public class Program {
                     } else {
                         a = clamp(a, 1, MAX_AMOUNT);
                     }
-                    p.steps.add(new Step(kind, Dir.valueOf(parts[1]), a, b));
+                    p.steps.add(new Step(kind, Dir.valueOf(parts[1]), a, b, c));
                 }
             }
             return p;
