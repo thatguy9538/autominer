@@ -200,8 +200,44 @@ public class Program {
         return (t / 10) + "." + (t % 10);
     }
 
-    /** GLFW key code that runs this script, or -1 for none. */
+    /** The keys that run this script, pressed together (up to 3, e.g. F3 + P). -1 = unused. */
     public int key = org.lwjgl.glfw.GLFW.GLFW_KEY_K;
+    public int key2 = -1;
+    public int key3 = -1;
+
+    /** The keys in this script's combination (empty if it has none). */
+    public int[] combo() {
+        return java.util.Arrays.stream(new int[]{key, key2, key3}).filter(k -> k >= 0).toArray();
+    }
+
+    public void setCombo(List<Integer> keys) {
+        key = keys.size() > 0 ? keys.get(0) : -1;
+        key2 = keys.size() > 1 ? keys.get(1) : -1;
+        key3 = keys.size() > 2 ? keys.get(2) : -1;
+    }
+
+    public void clearCombo() {
+        key = key2 = key3 = -1;
+    }
+
+    public boolean sameCombo(Program other) {
+        int[] a = combo(), b = other.combo();
+        java.util.Arrays.sort(a);
+        java.util.Arrays.sort(b);
+        return a.length > 0 && java.util.Arrays.equals(a, b);
+    }
+
+    /** e.g. "F3 + P", or "?" if none. */
+    public String comboName() {
+        int[] c = combo();
+        if (c.length == 0) return "?";
+        StringBuilder sb = new StringBuilder();
+        for (int k : c) {
+            if (sb.length() > 0) sb.append(" + ");
+            sb.append(LaneWalkerClient.keyName(k));
+        }
+        return sb.toString();
+    }
     public final List<Step> steps = new ArrayList<>();
 
     /** Every block in the script, including ones inside repeat / if blocks. */
@@ -321,7 +357,7 @@ public class Program {
     //   }
 
     void writeTo(StringBuilder sb) {
-        sb.append("script ").append(key).append('\n');
+        sb.append("script ").append(key).append(' ').append(key2).append(' ').append(key3).append('\n');
         writeList(sb, steps);
     }
 

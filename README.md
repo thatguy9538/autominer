@@ -6,14 +6,17 @@ Build a walking program out of Scratch-style blocks, then run it.
 | Input | What it does |
 |-------|--------------|
 | **B** | Open the block editor |
-| A script's key (K by default) | Run that script, or stop it if it's running |
+| A script's keys (K by default; can be a combo like F3 + P) | Run that script, or stop it if it's running |
 | `/walk edit`, `/walk run`, `/walk stop` | Open the editor, run the first script, stop |
 
 ## The block editor
 * **Scripts:** every script starts with a yellow **when [K] key pressed** block, and blocks snap underneath it.
   Drag a new hat out of the **Events** section to add another script (up to 8); new scripts start empty.
-  Click the key box, then press any key to choose that script's key (Esc cancels, Backspace clears;
-  right-click the box to clear it). Two scripts can't share a key.
+  Click the key box, then hold the key or keys you want **together** (up to 3, like `F3 + P` or `Ctrl + Shift + K`)
+  and let go; the whole combination is saved. Esc on its own cancels, Backspace on its own clears; right-click the
+  box to clear it too. Two scripts can't share the same combination. If one script uses `K` and another `Ctrl + K`,
+  pressing Ctrl + K only starts the Ctrl + K one. (Some combos also do things in vanilla, e.g. F3 + P toggles
+  "pause on lost focus", and still will.)
   Click the green **▶** on a script to run it right away. Drag a script's hat block back to the palette to delete the whole script.
   Only one script moves you at a time: pressing another script's key switches to it.
 * **Dragging:** a dark line shows where a block will land: under another block, or inside a repeat / if.
@@ -79,4 +82,4 @@ It pauses while a menu is open and stops if you die. Containers (chests, barrels
 exception: the script keeps running while one is open, except walk and go to blocks, which wait until it's closed.
 
 ## Install
-Put `lanewalker-5.6.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.7.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

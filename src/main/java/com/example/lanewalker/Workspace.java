@@ -44,11 +44,13 @@ public class Workspace {
             for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
                 String[] parts = line.trim().split("\\s+");
                 if (parts.length == 0 || parts[0].isEmpty()) continue;
-                if (parts[0].equals("script") && parts.length == 2) {
+                if (parts[0].equals("script") && parts.length >= 2 && parts.length <= 4) {
                     if (w.scripts.size() >= MAX_SCRIPTS) break;
                     if (current != null) current.finishLoading();
                     current = new Program();
                     current.key = Integer.parseInt(parts[1]);
+                    if (parts.length >= 3) current.key2 = Integer.parseInt(parts[2]);
+                    if (parts.length >= 4) current.key3 = Integer.parseInt(parts[3]);
                     w.scripts.add(current);
                     continue;
                 }

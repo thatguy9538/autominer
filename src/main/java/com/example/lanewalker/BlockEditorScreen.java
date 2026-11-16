@@ -171,6 +171,8 @@ public class BlockEditorScreen extends Screen {
     private SegType editNumSeg = null;
     private String numBuffer = "";
     private final Set<Integer> captureHeld = new HashSet<>();
+    /** Keys pressed so far while picking a script's key combination. */
+    private final List<Integer> captureCombo = new ArrayList<>();
 
     /** Per frame: block rectangles {x1, y1, x2, color} and "if" sockets {x, y}, by block id. */
     private final Map<Integer, int[]> blockRects = new HashMap<>();
@@ -346,7 +348,7 @@ public class BlockEditorScreen extends Screen {
             }
             case KEY -> {
                 if (leftDown) startCapture(hit.script, h);
-                else if (p != null) p.key = -1;
+                else if (p != null) p.clearCombo();
             }
             case ATMODE -> openMenu(hit, AT_OPTIONS, s.mode);
             case YMODE -> openMenu(hit, Y_OPTIONS, s.mode);
@@ -445,6 +447,7 @@ public class BlockEditorScreen extends Screen {
     private void startCapture(int scriptIndex, long handle) {
         capturing = scriptIndex;
         captureHeld.clear();
+        captureCombo.clear();
         for (int k : VALID_KEYS) if (GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS) captureHeld.add(k);
     }
 
@@ -464,18 +467,26 @@ public class BlockEditorScreen extends Screen {
                 capturingStep = null;
                 return;
             }
-            Program p = script(capturing);
-            if (k == GLFW.GLFW_KEY_ESCAPE) {
-                // cancel
-            } else if (k == GLFW.GLFW_KEY_BACKSPACE || k == GLFW.GLFW_KEY_DELETE) {
-                if (p != null) p.key = -1;
-            } else if (p != null) {
-                for (Program other : ws().scripts) if (other != p && other.key == k) other.key = -1;   // no duplicates
-                p.key = k;
-            }
-            capturing = -1;
-            return;
+            // a script's combination: collect keys while they're held (up to 3)
+            if (!captureCombo.contains(k) && captureCombo.size() < 3) captureCombo.add(k);
         }
+        if (capturingStep != null || captureCombo.isEmpty()) return;
+        for (int k : captureCombo) {
+            if (GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS) return;      // still holding: keep collecting
+        }
+        // all let go: save the combination
+        Program p = script(capturing);
+        int only = captureCombo.size() == 1 ? captureCombo.get(0) : -1;
+        if (only == GLFW.GLFW_KEY_ESCAPE) {
+            // cancel
+        } else if (only == GLFW.GLFW_KEY_BACKSPACE || only == GLFW.GLFW_KEY_DELETE) {
+            if (p != null) p.clearCombo();
+        } else if (p != null) {
+            p.setCombo(captureCombo);
+            for (Program other : ws().scripts) if (other != p && other.sameCombo(p)) other.clearCombo();   // no duplicates
+        }
+        captureCombo.clear();
+        capturing = -1;
     }
 
     // ---- typing numbers
@@ -596,10 +607,19 @@ public class BlockEditorScreen extends Screen {
         };
     }
 
+    private static String comboText(List<Integer> keys) {
+        StringBuilder sb = new StringBuilder();
+        for (int k : keys) {
+            if (sb.length() > 0) sb.append(" + ");
+            sb.append(LaneWalkerClient.keyName(k));
+        }
+        return sb.toString();
+    }
+
     private static int freeKey() {
         for (int k : DEFAULT_KEYS) {
             boolean used = false;
-            for (Program p : ws().scripts) if (p.key == k) used = true;
+            for (Program p : ws().scripts) if (p.combo().length == 1 && p.key == k) used = true;
             if (!used) return k;
         }
         return -1;
@@ -709,6 +729,8 @@ public class BlockEditorScreen extends Screen {
             if (inScript(mx, my) && scripts.size() < Workspace.MAX_SCRIPTS) {
                 Program np = new Program();      // new scripts start empty: just the hat
                 np.key = freeKey();
+                np.key2 = -1;
+                np.key3 = -1;
                 scripts.add(np);
             }
             dragHatNew = false;
@@ -815,7 +837,7 @@ public class BlockEditorScreen extends Screen {
 
         String[] tips = {
                 "Drag \"when key pressed\"", "out to add a script.",
-                "Click its key to change it,", "\u25B6 runs that script.",
+                "Click its key box, hold the", "keys (up to 3, e.g. F3 + P),", "then let go. \u25B6 runs it.",
                 "Blocks snap under a hat", "or inside repeat / if.",
                 "Drag a block or hat back", "here to delete it.",
                 "Click \u25BE to open a list.", "Numbers: click the box,", "type, then press Enter.",
@@ -836,7 +858,10 @@ public class BlockEditorScreen extends Screen {
 
     /** Draws a "when [key] pressed" hat block and returns its width. */
     private int drawHat(DrawContext ctx, int x, int y, Program p, int si, boolean editable) {
-        String keyText = p == null ? "?" : capturing == si && si >= 0 ? "press a key" : LaneWalkerClient.keyName(p.key);
+        String keyText;
+        if (p == null) keyText = "?";
+        else if (capturing == si && si >= 0) keyText = captureCombo.isEmpty() ? "hold keys" : comboText(captureCombo) + " ...";
+        else keyText = p.comboName();
         List<Seg> segs = editable
                 ? List.of(new Seg(SegType.LABEL, "when"), new Seg(SegType.KEY, keyText),
                 new Seg(SegType.LABEL, "key pressed"), new Seg(SegType.RUN, "\u25B6"))

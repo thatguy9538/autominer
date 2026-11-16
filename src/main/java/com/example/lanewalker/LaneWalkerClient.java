@@ -162,7 +162,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     public static void start(MinecraftClient client, Program script) {
         if (client.player == null || script == null) return;
         if (script.steps.isEmpty()) {
-            say(client, Text.literal("Lane Walker: the [" + keyName(script.key)
+            say(client, Text.literal("Lane Walker: the [" + script.comboName()
                     + "] script is empty. Press B to add blocks.").formatted(Formatting.RED));
             return;
         }
@@ -473,23 +473,38 @@ public class LaneWalkerClient implements ClientModInitializer {
         while (editorKey.wasPressed()) {
             if (client.currentScreen == null) openEditor(client);
         }
-        // each script's "when [key] pressed" key runs it, or stops it if it's already running
+        // each script's "when [keys] pressed" combination runs it, or stops it if it's already running
         if (client.currentScreen == null) {
             long handle = client.getWindow().getHandle();
+            java.util.Set<Integer> nowDown = new java.util.HashSet<>();
             for (Program script : workspace.scripts) {
-                int key = script.key;
-                if (key < GLFW.GLFW_KEY_SPACE || key > GLFW.GLFW_KEY_LAST) continue;
-                boolean down = GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS;
-                if (down && !keysDown.contains(key)) {
-                    if (running && program == script) stop(client, "stopped");
-                    else start(client, script);
+                for (int k : script.combo()) {
+                    if (k >= GLFW.GLFW_KEY_SPACE && k <= GLFW.GLFW_KEY_LAST
+                            && GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS) nowDown.add(k);
+                }
+            }
+            // the combination that was just completed; if several, the one with the most keys
+            // (so Ctrl + K doesn't also start the plain K script)
+            Program pressed = null;
+            int most = 0;
+            for (Program script : workspace.scripts) {
+                int[] c = script.combo();
+                if (c.length == 0) continue;
+                boolean all = true, allBefore = true;
+                for (int k : c) {
+                    if (!nowDown.contains(k)) all = false;
+                    if (!keysDown.contains(k)) allBefore = false;
+                }
+                if (all && !allBefore && c.length > most) {
+                    pressed = script;
+                    most = c.length;
                 }
             }
             keysDown.clear();
-            for (Program script : workspace.scripts) {
-                int key = script.key;
-                if (key >= GLFW.GLFW_KEY_SPACE && key <= GLFW.GLFW_KEY_LAST
-                        && GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS) keysDown.add(key);
+            keysDown.addAll(nowDown);
+            if (pressed != null) {
+                if (running && program == pressed) stop(client, "stopped");
+                else start(client, pressed);
             }
         } else {
             keysDown.clear();
