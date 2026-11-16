@@ -148,6 +148,20 @@ public class Program {
 
     static int clamp(int v, int lo, int hi) { return Math.max(lo, Math.min(hi, v)); }
 
+    /** Give any block whose id is already taken (in any script) a new one. */
+    static void makeIdsUnique(List<Program> scripts) {
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (Program p : scripts) for (Step s : p.allSteps()) nextId = Math.max(nextId, s.id + 1);
+        for (Program p : scripts) {
+            for (Step s : p.allSteps()) {
+                if (!seen.add(s.id)) {
+                    s.id = nextId++;
+                    seen.add(s.id);
+                }
+            }
+        }
+    }
+
     // ---- saving / loading (see Workspace for the file itself) ----
     //
     //   script <key>

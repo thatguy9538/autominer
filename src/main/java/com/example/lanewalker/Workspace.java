@@ -60,6 +60,7 @@ public class Workspace {
             }
             if (current != null) current.finishLoading();
             if (w.scripts.isEmpty()) return defaults();
+            Program.makeIdsUnique(w.scripts);
             return w;
         } catch (Exception e) {
             return defaults();
