@@ -93,6 +93,8 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static boolean containerWasOpen = false;
     /** Ticks to wait after closing a full container before running the next block. */
     private static int resumeDelay = 0;
+    /** The player's own "pause on lost focus" setting, put back when the script stops (null = untouched). */
+    private static Boolean savedPauseOnLostFocus = null;
     private static final int CLOSE_DELAY = 20;     // 1 second
     /** "put all in container": how long to wait for a container to open, and the slots already moved. */
     private static final int DEPOSIT_OPEN_WAIT = 100;   // 5 seconds
@@ -171,6 +173,9 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         program = script;
         running = true;
+        // keep running when you click into another window: don't let the game open its pause menu
+        if (savedPauseOnLostFocus == null) savedPauseOnLostFocus = client.options.pauseOnLostFocus;
+        client.options.pauseOnLostFocus = false;
         resumeDelay = 0;
         outcomes.clear();
         stack.clear();
@@ -184,6 +189,10 @@ public class LaneWalkerClient implements ClientModInitializer {
         running = false;
         controllingVertical = false;
         stack.clear();
+        if (savedPauseOnLostFocus != null) {          // put the player's setting back
+            client.options.pauseOnLostFocus = savedPauseOnLostFocus;
+            savedPauseOnLostFocus = null;
+        }
         KeyBinding.updatePressedStates(); // hand movement keys back to the real keyboard
         say(client, Text.literal("Lane Walker: " + why).formatted(Formatting.YELLOW));
     }

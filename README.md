@@ -70,9 +70,13 @@ Build a walking program out of Scratch-style blocks, then run it.
 
 Your scripts are saved automatically to `.minecraft/config/lanewalker.txt`.
 
+While a script runs, Minecraft keeps going when you click into another window or tab (the "pause on lost
+focus" setting is turned off until the script stops, then put back). Mining / attacking with a held left click
+only works while the Minecraft window is focused, because the game lets go of the mouse when you switch away.
+
 Walk directions are relative to where you're looking. While it runs you can still look around and jump.
 It pauses while a menu is open and stops if you die. Containers (chests, barrels, shulker boxes...) are the
 exception: the script keeps running while one is open, except walk and go to blocks, which wait until it's closed.
 
 ## Install
-Put `lanewalker-5.5.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.6.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
