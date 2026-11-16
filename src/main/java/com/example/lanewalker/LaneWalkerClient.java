@@ -55,6 +55,8 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
     private static boolean wasAtStopSpot = false;
+    /** For "if" blocks: did each block (by id) complete the last time it ran? */
+    private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
     private static boolean controllingVertical = false;   // jump / sneak keys held by "go to"
     private static double goBest = Double.MAX_VALUE;      // closest "go to" has got so far
     private static int goStuck = 0;                        // ticks without getting closer
@@ -113,6 +115,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         }
         running = true;
         tripsDone = 0;
+        outcomes.clear();
         wasAtStopSpot = atStopSpot(client.player) != null;   // only stop when you *arrive* at a spot
         startStep(client, 0);
     }
@@ -148,6 +151,12 @@ public class LaneWalkerClient implements ClientModInitializer {
         say(client, Text.literal("Lane Walker: ").formatted(Formatting.YELLOW)
                 .append(Text.literal(desc).formatted(Formatting.WHITE))
                 .append(Text.literal(trip).formatted(Formatting.GRAY)));
+    }
+
+    /** Record whether the current block completed, then move on. */
+    private static boolean finish(MinecraftClient client, boolean completed) {
+        outcomes.put(program.steps.get(stepIndex).id, completed);
+        return advance(client);
     }
 
     /** Move on to the next block; returns false if the program finished. */
@@ -213,7 +222,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                 boolean arrived = h < 0.6 && (!canFly || Math.abs(dy) < 0.6);
 
                 if (arrived) {
-                    if (!advance(client)) return;
+                    if (!finish(client, true)) return;
                     Program.Step now = program.steps.get(stepIndex);
                     walkDir = now.kind.isWalk() ? now.dir : null;
                     break;
@@ -249,8 +258,19 @@ public class LaneWalkerClient implements ClientModInitializer {
                     wantJump = player.horizontalCollision && player.isOnGround();   // hop up steps
                 }
             }
+            case IF -> {
+                Program.Step linked = step.link >= 0 ? program.byId(step.link) : null;
+                boolean cond = linked != null && outcomes.getOrDefault(linked.id, false);
+                if (!finish(client, true)) return;
+                if (!cond) {                  // condition false: skip the block under the "if"
+                    outcomes.put(program.steps.get(stepIndex).id, false);
+                    if (!advance(client)) return;
+                }
+                Program.Step now = program.steps.get(stepIndex);
+                walkDir = now.kind.isWalk() ? now.dir : null;
+            }
             case STOP_AT -> {                 // nothing to do in order; it's checked every tick above
-                if (!advance(client)) return;
+                if (!finish(client, true)) return;
                 Program.Step now = program.steps.get(stepIndex);
                 walkDir = now.kind.isWalk() ? now.dir : null;
             }
@@ -260,13 +280,13 @@ public class LaneWalkerClient implements ClientModInitializer {
                 player.setYaw(yaw);
                 player.setPitch(pitch);
                 player.setHeadYaw(yaw);
-                if (!advance(client)) return;
+                if (!finish(client, true)) return;
                 Program.Step now = program.steps.get(stepIndex);
                 walkDir = now.kind.isWalk() ? now.dir : null;
             }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
-                    if (!advance(client)) return;
+                    if (!finish(client, true)) return;
                 }
             }
             case WALK_WALL, WALK_BLOCKS -> {
@@ -274,13 +294,16 @@ public class LaneWalkerClient implements ClientModInitializer {
                 if (cooldown > 0) {
                     cooldown--;
                 } else {
-                    boolean done = player.horizontalCollision;
+                    boolean wall = player.horizontalCollision;
+                    boolean distance = false;
                     if (step.kind == Program.Kind.WALK_BLOCKS && legStart != null) {
                         double dx = player.getX() - legStart.x, dz = player.getZ() - legStart.z;
-                        done |= dx * dx + dz * dz >= (double) step.amount * step.amount;
+                        distance = dx * dx + dz * dz >= (double) step.amount * step.amount;
                     }
-                    if (done) {
-                        if (!advance(client)) return;
+                    if (wall || distance) {
+                        // "until wall" completes at a wall; "N blocks" only completes if it went the full distance
+                        boolean completed = step.kind == Program.Kind.WALK_WALL || distance;
+                        if (!finish(client, completed)) return;
                         Program.Step now = program.steps.get(stepIndex);
                         walkDir = now.kind.isWalk() ? now.dir : null;
                     }

@@ -19,9 +19,12 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO;
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF;
 
         public boolean isWalk() { return this == WALK_WALL || this == WALK_BLOCKS; }
+
+        /** Orange "Control" blocks (everything else is blue "Motion"). */
+        public boolean isControl() { return isWait() || this == STOP_AT || this == IF; }
 
         public boolean isWait() { return this == WAIT || this == WAIT_RANDOM; }
     }
@@ -36,6 +39,10 @@ public class Program {
          *  GO_TO:       amount = X, amount2 = Y, amount3 = Z. */
         public int amount2;
         public int amount3;
+        /** Unique id, so "if" links survive reordering. */
+        public int id;
+        /** IF only: id of the linked block, or -1. */
+        public int link = -1;
 
         public Step(Kind kind, Dir dir, int amount) {
             this(kind, dir, amount, amount);
@@ -51,8 +58,10 @@ public class Program {
             this.amount = amount;
             this.amount2 = amount2;
             this.amount3 = amount3;
+            this.id = nextId++;
         }
 
+        /** A fresh copy with its own id (used when dragging out of the palette). */
         public Step copy() { return new Step(kind, dir, amount, amount2, amount3); }
 
         public String describe() {
@@ -64,6 +73,7 @@ public class Program {
                 case SET_ANGLE -> "set angle x " + amount + " y " + amount2;
                 case STOP_AT -> "stop at x " + amount + " z " + amount2;
                 case GO_TO -> "go to " + amount + " " + amount2 + " " + amount3;
+                case IF -> "if linked block is done, run next";
             };
         }
     }
@@ -71,6 +81,12 @@ public class Program {
     public static final int MAX_STEPS = 30;
     public static final int MAX_AMOUNT = 999;
     public static final int COORD_LIMIT = 30_000_000;
+    private static int nextId = 1;
+
+    public Step byId(int id) {
+        for (Step s : steps) if (s.id == id) return s;
+        return null;
+    }
     public static final int MIN_Y = -2048, MAX_Y = 4096;
     /** Longest random wait, in tenths of a second (60 s). */
     public static final int MAX_TENTHS = 600;
@@ -95,8 +111,9 @@ public class Program {
     public void save(Path file) {
         StringBuilder sb = new StringBuilder("repeat ").append(repeats).append('\n');
         for (Step s : steps) {
-            sb.append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
-                    .append(' ').append(s.amount2).append(' ').append(s.amount3).append('\n');
+            sb.append("step ").append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
+                    .append(' ').append(s.amount2).append(' ').append(s.amount3)
+                    .append(' ').append(s.id).append(' ').append(s.link).append('\n');
         }
         try {
             Files.createDirectories(file.getParent());
@@ -111,6 +128,12 @@ public class Program {
             Program p = new Program();
             for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
                 String[] parts = line.trim().split("\\s+");
+                int id = -1, link = -1;
+                if (parts.length == 8 && parts[0].equals("step")) {   // newest format
+                    id = Integer.parseInt(parts[6]);
+                    link = Integer.parseInt(parts[7]);
+                    parts = java.util.Arrays.copyOfRange(parts, 1, 6);
+                }
                 if (parts.length == 2 && parts[0].equals("repeat")) {
                     p.repeats = clamp(Integer.parseInt(parts[1]), 0, 100000);
                 } else if (parts.length >= 3 && parts.length <= 5 && p.steps.size() < MAX_STEPS) {
@@ -134,7 +157,13 @@ public class Program {
                     } else {
                         a = clamp(a, 1, MAX_AMOUNT);
                     }
-                    p.steps.add(new Step(kind, Dir.valueOf(parts[1]), a, b, c));
+                    Step st = new Step(kind, Dir.valueOf(parts[1]), a, b, c);
+                    if (id > 0) {
+                        st.id = id;
+                        nextId = Math.max(nextId, id + 1);
+                    }
+                    st.link = link;
+                    p.steps.add(st);
                 }
             }
             return p;

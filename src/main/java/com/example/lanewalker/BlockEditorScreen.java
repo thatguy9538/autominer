@@ -30,13 +30,13 @@ public class BlockEditorScreen extends Screen {
     private static final int TOP = 24;
     private static final int PAL_X = 8, PAL_W = 176;
 
-    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, NUM2, NUM3, REPEAT, RMODE, BUTTON, MENU_ITEM }
+    private enum HitType { PALETTE, BLOCK, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE, BUTTON, MENU_ITEM }
 
     private record Hit(int x1, int y1, int x2, int y2, HitType type, int index) {
         boolean contains(int x, int y) { return x >= x1 && x < x2 && y >= y1 && y < y2; }
     }
 
-    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, REPEAT, RMODE }
+    private enum SegType { LABEL, DIR, MODE, NUM, NUM2, NUM3, LINK, REPEAT, RMODE }
 
     /** An open drop-down list. */
     private record Menu(HitType kind, int index, int x, int y, int w, List<String> options, int selected) {}
@@ -57,6 +57,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.WAIT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.WAIT_RANDOM, Program.Dir.LEFT, 5, 20),
             new Program.Step(Program.Kind.STOP_AT, Program.Dir.LEFT, 0, 0),
+            new Program.Step(Program.Kind.IF, Program.Dir.LEFT, 0, 0),
     };
 
     private static final String[] BUTTONS = {"▶ Run", "■ Stop", "Reset", "Done"};
@@ -72,6 +73,11 @@ public class BlockEditorScreen extends Screen {
     private int scrollY = 0;
     private int contentHeight = 0;
     private Menu menu = null;
+    /** Id of the "if" block whose string is being connected, or -1. */
+    private int linkFrom = -1;
+    /** Per frame: block rectangles {x1, y1, x2, color} and "if" sockets {x, y}, by block id. */
+    private final java.util.Map<Integer, int[]> blockRects = new java.util.HashMap<>();
+    private final java.util.Map<Integer, int[]> sockets = new java.util.HashMap<>();
 
     public BlockEditorScreen() {
         super(Text.literal("Lane Walker Blocks"));
@@ -145,6 +151,18 @@ public class BlockEditorScreen extends Screen {
             return;
         }
 
+        if (linkFrom >= 0) {               // connecting an "if": click the block to link to
+            Hit target = leftDown ? hitAt(mx, my) : null;
+            Program.Step from = program().byId(linkFrom);
+            if (from != null && target != null && target.type != HitType.PALETTE && target.type != HitType.BUTTON
+                    && target.index >= 0) {
+                Program.Step to = program().steps.get(target.index);
+                if (to.id != from.id) from.link = to.id;
+            }
+            linkFrom = -1;
+            return;
+        }
+
         Hit hit = hitAt(mx, my);
         if (hit == null) return;
         int sign = leftDown ? 1 : -1;
@@ -157,6 +175,11 @@ public class BlockEditorScreen extends Screen {
                     p.steps.get(hit.index).kind == Program.Kind.WALK_WALL ? 0 : 1);
             case RMODE -> openMenu(hit, REPEAT_MODE_OPTIONS, p.repeats == 0 ? 0 : 1);
             case MENU_ITEM -> { }
+            case LINK -> {
+                Program.Step s = p.steps.get(hit.index);
+                if (leftDown) linkFrom = s.id;   // start connecting
+                else s.link = -1;                // right-click: cut the string
+            }
             case NUM -> changeAmount(p.steps.get(hit.index), sign * step);
             case NUM2 -> changeAmount2(p.steps.get(hit.index), sign * step);
             case NUM3 -> changeAmount3(p.steps.get(hit.index), sign * step);
@@ -335,6 +358,8 @@ public class BlockEditorScreen extends Screen {
         handleInput(mouseX, mouseY);
         super.render(ctx, mouseX, mouseY, delta);   // dimmed / blurred background
         nextHits = new ArrayList<>();
+        blockRects.clear();
+        sockets.clear();
 
         ctx.drawCenteredTextWithShadow(textRenderer, "Lane Walker — Block Editor", width / 2, 8, WHITE);
 
@@ -376,6 +401,7 @@ public class BlockEditorScreen extends Screen {
                 "Drag blocks into the", "repeat block.",
                 "Drag a block back here", "to delete it.",
                 "Click \u25BE to open a list.", "Numbers: click = +1,", "right-click = -1,", "Shift = x10, or scroll.",
+                "If: click its \u25CF, then", "click a block to link it.", "Right-click \u25CF to unlink.",
         };
         for (String tip : tips) {
             if (y + 9 > y2 - 4) break;
@@ -438,7 +464,8 @@ public class BlockEditorScreen extends Screen {
                 Program.Step step = p.steps.get(s);
                 int w = drawStackBlock(ctx, x + ARM, iy, step, s, true, SCRIPT_BG);
                 nextHits.add(0, new Hit(x + ARM, iy, x + ARM + w, iy + BH, HitType.BLOCK, s));
-                tabs.add(new int[]{x + ARM, iy + BH, step.kind.isWait() ? CONTROL : MOTION});
+                tabs.add(new int[]{x + ARM, iy + BH, colorOf(step)});
+                blockRects.put(step.id, new int[]{x + ARM, iy, x + ARM + w, colorOf(step)});
                 s++;
             }
             iy += BH;
@@ -455,9 +482,47 @@ public class BlockEditorScreen extends Screen {
         ctx.fill(x, innerBottom + 13, x + cw, innerBottom + 14, CONTROL_DARK);
         ctx.fill(x + ARM + 9, innerTop, x + ARM + 19, innerTop + 2, CONTROL);   // tab into first block
         for (int[] t : tabs) ctx.fill(t[0] + 9, t[1], t[0] + 19, t[1] + 2, t[2]);
+        drawStrings(ctx, mx, my);
 
         contentHeight = innerBottom + 14 - (y1 + 16 - scrollY) + 16;
         ctx.disableScissor();
+    }
+
+    /** The coloured "strings" from each "if" socket to the block it's linked to. */
+    private void drawStrings(DrawContext ctx, int mx, int my) {
+        int laneBase = 0;
+        for (int[] rect : blockRects.values()) laneBase = Math.max(laneBase, rect[2]);
+        laneBase += 8;
+        int lane = 0;
+        for (Program.Step s : program().steps) {
+            if (s.kind != Program.Kind.IF || s.link < 0) continue;
+            int[] sock = sockets.get(s.id), target = blockRects.get(s.link);
+            if (sock == null || target == null) continue;
+            int lx = laneBase + lane * 5;
+            lane++;
+            int ty = target[1] + BH / 2, color = target[3];
+            hLine(ctx, sock[0], lx, sock[1], color);
+            vLine(ctx, lx, sock[1], ty, color);
+            hLine(ctx, target[2], lx, ty, color);
+            ctx.fill(target[2] - 2, ty - 2, target[2] + 1, ty + 3, color);   // knot on the target block
+        }
+        if (linkFrom >= 0 && sockets.containsKey(linkFrom)) {   // string following the mouse
+            int[] sock = sockets.get(linkFrom);
+            hLine(ctx, sock[0], mx, sock[1], FIELD_TEXT);
+            vLine(ctx, mx, sock[1], my, FIELD_TEXT);
+        }
+    }
+
+    private static void hLine(DrawContext ctx, int xa, int xb, int y, int color) {
+        ctx.fill(Math.min(xa, xb), y - 1, Math.max(xa, xb) + 1, y + 1, color);
+    }
+
+    private static void vLine(DrawContext ctx, int x, int ya, int yb, int color) {
+        ctx.fill(x - 1, Math.min(ya, yb), x + 1, Math.max(ya, yb) + 1, color);
+    }
+
+    private static int colorOf(Program.Step s) {
+        return s.kind.isControl() ? CONTROL : MOTION;
     }
 
     private void drawMenu(DrawContext ctx, int mx, int my) {
@@ -508,6 +573,8 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.MODE, "blocks"));
             case WAIT -> List.of(new Seg(SegType.LABEL, "wait"), new Seg(SegType.NUM, String.valueOf(s.amount)),
                     new Seg(SegType.LABEL, s.amount == 1 ? "second" : "seconds"));
+            case IF -> List.of(new Seg(SegType.LABEL, "if"), new Seg(SegType.LABEL, "done"),
+                    new Seg(SegType.LABEL, "\u2192 run next"), new Seg(SegType.LINK, ""));
             case GO_TO -> List.of(new Seg(SegType.LABEL, "go to x"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "y"),
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)), new Seg(SegType.LABEL, "z"),
@@ -526,7 +593,7 @@ public class BlockEditorScreen extends Screen {
 
     /** Draws a stack block and returns its width. */
     private int drawStackBlock(DrawContext ctx, int x, int y, Program.Step s, int index, boolean editable, int bg) {
-        boolean motion = !s.kind.isWait();
+        boolean motion = !s.kind.isControl();
         int color = motion ? MOTION : CONTROL, dark = motion ? MOTION_DARK : CONTROL_DARK;
         List<Seg> segs = segmentsFor(s);
         int w = Math.max(120, segmentsWidth(segs) + 16);
@@ -544,6 +611,7 @@ public class BlockEditorScreen extends Screen {
             case LABEL -> textRenderer.getWidth(seg.text);
             case DIR, MODE, RMODE -> textRenderer.getWidth(seg.text + " ▾") + 10;
             case NUM, NUM2, NUM3, REPEAT -> Math.max(20, textRenderer.getWidth(seg.text) + 12);
+            case LINK -> 14;
         };
     }
 
@@ -566,6 +634,18 @@ public class BlockEditorScreen extends Screen {
                             : seg.type == SegType.MODE ? HitType.MODE : HitType.RMODE;
                     if (editable && (index >= 0 || ht == HitType.RMODE))
                         nextHits.add(new Hit(tx, y + 4, tx + w, y + BH - 4, ht, index));
+                }
+                case LINK -> {
+                    int cx = tx + 7, cyy = y + BH / 2;
+                    Program.Step me = editable && index >= 0 ? program().steps.get(index) : null;
+                    Program.Step linked = me != null && me.link >= 0 ? program().byId(me.link) : null;
+                    int fillColor = linked != null ? colorOf(linked) : WHITE;
+                    pill(ctx, cx - 6, cyy - 6, 12, 12, FIELD_TEXT);   // socket ring
+                    pill(ctx, cx - 4, cyy - 4, 8, 8, fillColor);
+                    if (me != null) {
+                        sockets.put(me.id, new int[]{cx + 6, cyy});
+                        nextHits.add(new Hit(cx - 7, cyy - 7, cx + 7, cyy + 7, HitType.LINK, index));
+                    }
                 }
                 case NUM, NUM2, NUM3, REPEAT -> {
                     pill(ctx, tx, y + 4, w, BH - 8, WHITE);
