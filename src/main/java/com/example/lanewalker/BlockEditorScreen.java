@@ -979,6 +979,8 @@ public class BlockEditorScreen extends Screen {
                         HitType.ELSE_ADD, si, s, null, -1));
             }
         }
+        // darker line down the left side, from where the C block starts to where it ends
+        ctx.fill(x + 3, y + 3, x + 5, bottomTop + C_BOTTOM - 3, dark);
         drawSegments(ctx, x + 8, y, segs, si, s, live, dark);
         if (size != null) size[0] = w;
         return bottomTop + C_BOTTOM;

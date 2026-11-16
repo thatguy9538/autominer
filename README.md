@@ -66,4 +66,4 @@ It pauses while a menu is open and stops if you die. Containers (chests, barrels
 exception: the script keeps running while one is open, except walk and go to blocks, which wait until it's closed.
 
 ## Install
-Put `lanewalker-5.3.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.3.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
