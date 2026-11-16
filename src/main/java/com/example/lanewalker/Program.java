@@ -27,7 +27,7 @@ public class Program {
         // control
         REPEAT, REPEAT_UNTIL, IF_AT, IF_WALL, IF, WAIT, WAIT_RANDOM, WAIT_UNTIL, STOP_AT, STOP_SCRIPT, RUN_SCRIPT,
         // inventory
-        SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL,
+        SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL, DEPOSIT, CLOSE_CONTAINER, WAIT_OPEN,
         // sensing
         IF_LOOKING, IF_HEALTH, IF_Y,
         // keys
@@ -56,7 +56,8 @@ public class Program {
         public Category category() {
             return switch (this) {
                 case WALK_WALL, WALK_BLOCKS, SET_ANGLE, GO_TO -> Category.MOTION;
-                case SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL -> Category.INVENTORY;
+                case SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL, DEPOSIT, CLOSE_CONTAINER, WAIT_OPEN ->
+                        Category.INVENTORY;
                 case IF_LOOKING, IF_HEALTH, IF_Y, HOLD_KEY -> Category.SENSING;
                 case SAY, SOUND -> Category.SOUND;
                 case COMMENT -> Category.NOTE;
@@ -81,13 +82,14 @@ public class Program {
          *  HOLD_KEY:    amount = key code, amount2 = tenths of a second, amount3 = 1 for a mouse button.
          *  RUN_SCRIPT:  amount = the other script's key.
          *  SELECT_SLOT: amount = 1-9.   IF_HEALTH: amount = hearts.   IF_Y: amount = y level.
-         *  SOUND:       amount = which sound. */
+         *  SOUND:       amount = which sound.
+         *  WAIT_OPEN:   amount = most seconds to wait. */
         public int amount;
         public int amount2;
         public int amount3;
         /** IF_AT: 0 = at, 1 = not at.  IF_Y: 0 = below, 1 = above. */
         public int mode;
-        /** SAY / COMMENT: the words.  IF_HOLDING: item id.  IF_LOOKING: block id. */
+        /** DEPOSIT: the item id / custom id / name to put away.  SAY / COMMENT: the words.  IF_HOLDING: item id.  IF_LOOKING: block id. */
         public String text = "";
         /** Unique id, so "if" strings survive reordering. */
         public int id;
@@ -151,6 +153,9 @@ public class Program {
                 case IF_HOLDING -> "if holding " + prettyId(text);
                 case IF_INV_FULL -> "if inventory full";
                 case IF_CONTAINER_FULL -> "if container full";
+                case DEPOSIT -> "put all " + text + " in container";
+                case CLOSE_CONTAINER -> "close container";
+                case WAIT_OPEN -> "wait until container open (up to " + amount + " s)";
                 case IF_LOOKING -> "if looking at " + prettyId(text);
                 case IF_HEALTH -> "if health below " + amount;
                 case IF_Y -> "if y " + (mode == 1 ? "above " : "below ") + amount;
@@ -290,7 +295,8 @@ public class Program {
             case IF_HEALTH -> s.amount = clamp(s.amount, 1, 20);
             case IF_Y -> s.amount = clamp(s.amount, MIN_Y, MAX_Y);
             case SOUND -> s.amount = clamp(s.amount, 0, SOUND_NAMES.size() - 1);
-            case RUN_SCRIPT, IF, IF_WALL, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL, IF_LOOKING, STOP_SCRIPT, SAY, COMMENT -> { }
+            case RUN_SCRIPT, IF, IF_WALL, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL, IF_LOOKING, STOP_SCRIPT, SAY, COMMENT,
+                 DEPOSIT, CLOSE_CONTAINER -> { }
             default -> s.amount = clamp(s.amount, 1, MAX_AMOUNT);
         }
         s.mode = clamp(s.mode, 0, 1);

@@ -99,6 +99,9 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.IF_HOLDING, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF_INV_FULL, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF_CONTAINER_FULL, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.DEPOSIT, Program.Dir.LEFT, 0).withText("diamond"),
+            new Program.Step(Program.Kind.CLOSE_CONTAINER, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.WAIT_OPEN, Program.Dir.LEFT, 5),
             // sensing
             new Program.Step(Program.Kind.IF_LOOKING, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF_HEALTH, Program.Dir.LEFT, 5),
@@ -112,7 +115,7 @@ public class BlockEditorScreen extends Screen {
     };
     /** Palette section headings, by the template they come before. */
     private static final Map<Integer, String> SECTIONS = Map.of(
-            0, "Motion", 4, "Control", 15, "Inventory", 19, "Sensing", 22, "Keys", 23, "Other");
+            0, "Motion", 4, "Control", 15, "Inventory", 22, "Sensing", 25, "Keys", 26, "Other");
 
     /** Keys handed out to new scripts, in order. */
     private static final int[] DEFAULT_KEYS = {
@@ -1137,6 +1140,11 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.PICK, s.text.isEmpty() ? "click: held item" : Program.prettyId(s.text)));
             case IF_INV_FULL -> List.of(new Seg(SegType.LABEL, "if inventory full"));
             case IF_CONTAINER_FULL -> List.of(new Seg(SegType.LABEL, "if container full"));
+            case DEPOSIT -> List.of(new Seg(SegType.LABEL, "put all"), new Seg(SegType.TEXT, textShown(s)),
+                    new Seg(SegType.LABEL, "in container"));
+            case CLOSE_CONTAINER -> List.of(new Seg(SegType.LABEL, "close container"));
+            case WAIT_OPEN -> List.of(new Seg(SegType.LABEL, "wait for container, up to"),
+                    new Seg(SegType.NUM, String.valueOf(s.amount)), new Seg(SegType.LABEL, "s"));
             case IF_LOOKING -> List.of(new Seg(SegType.LABEL, "if looking at"),
                     new Seg(SegType.PICK, s.text.isEmpty() ? "click: block" : Program.prettyId(s.text)));
             case IF_HEALTH -> List.of(new Seg(SegType.LABEL, "if health below"),

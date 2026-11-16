@@ -27,6 +27,11 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.item.ItemStack;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
+import net.minecraft.nbt.NbtCompound;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
@@ -88,7 +93,10 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static boolean containerWasOpen = false;
     /** Ticks to wait after closing a full container before running the next block. */
     private static int resumeDelay = 0;
-    private static final int CLOSE_DELAY = 20;     // 1 second   // "hold key" block: pressed it yet?
+    private static final int CLOSE_DELAY = 20;     // 1 second
+    /** "put all in container": how long to wait for a container to open, and the slots already moved. */
+    private static final int DEPOSIT_OPEN_WAIT = 100;   // 5 seconds
+    private static final java.util.Set<Integer> depositTried = new java.util.HashSet<>();   // "hold key" block: pressed it yet?
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
@@ -204,6 +212,8 @@ public class LaneWalkerClient implements ClientModInitializer {
             waitTicks = step.amount * 20;
         }
         if (step.kind == Program.Kind.HOLD_KEY) waitTicks = Math.max(1, step.amount2 * 2);
+        if (step.kind == Program.Kind.DEPOSIT) waitTicks = DEPOSIT_OPEN_WAIT;
+        depositTried.clear();
         holdStarted = false;
         ClientPlayerEntity p = client.player;
         legStart = new Vec3d(p.getX(), p.getY(), p.getZ());
@@ -318,8 +328,7 @@ public class LaneWalkerClient implements ClientModInitializer {
             case IF_CONTAINER_FULL -> {
                 boolean full = containerIsFull(client);
                 if (full && isContainerOpen(client)) {     // close it, then carry on 1 second later
-                    pl.closeHandledScreen();
-                    containerWasOpen = false;
+                    closeContainer(client);
                     resumeDelay = CLOSE_DELAY;
                 }
                 yield full;
@@ -329,6 +338,32 @@ public class LaneWalkerClient implements ClientModInitializer {
             case IF_Y -> s.mode == 1 ? pl.getY() > s.amount : pl.getY() < s.amount;
             default -> false;
         };
+    }
+
+    private static void closeContainer(MinecraftClient client) {
+        client.player.closeHandledScreen();
+        containerWasOpen = false;
+    }
+
+    /**
+     * Does this stack match what was typed? Accepts a vanilla id ("diamond", "minecraft:diamond"),
+     * a server's custom item id (stored in the item's custom data, e.g. "ENCHANTED_DIAMOND"),
+     * or the item's name as shown in game.
+     */
+    static boolean matchesItem(ItemStack stack, String typed) {
+        String q = typed == null ? "" : typed.trim();
+        if (q.isEmpty() || stack.isEmpty()) return false;
+        String lower = q.toLowerCase(java.util.Locale.ROOT);
+        String id = Registries.ITEM.getId(stack.getItem()).toString();
+        if (id.equals(lower) || id.equals("minecraft:" + lower)) return true;
+        NbtComponent custom = stack.get(DataComponentTypes.CUSTOM_DATA);
+        if (custom != null) {
+            NbtCompound nbt = custom.copyNbt();
+            if (nbt.getString("id", "").equalsIgnoreCase(q)) return true;
+            if (nbt.getCompoundOrEmpty("ExtraAttributes").getString("id", "").equalsIgnoreCase(q)) return true;
+        }
+        String name = Formatting.strip(stack.getName().getString());
+        return name != null && name.trim().equalsIgnoreCase(q);
     }
 
     private static boolean isContainerOpen(MinecraftClient client) {
@@ -550,6 +585,49 @@ public class LaneWalkerClient implements ClientModInitializer {
                 if (--waitTicks <= 0) {
                     KeyBinding.setKeyPressed(key, false);
                     if (!finish(client, true)) return;
+                    walkDir = currentWalkDir();
+                }
+            }
+            case DEPOSIT -> {
+                if (!containerOpen) {                 // wait (up to 5 s) for a container to open
+                    if (--waitTicks <= 0) {
+                        if (!finish(client, false)) return;
+                        walkDir = currentWalkDir();
+                    }
+                    break;
+                }
+                if (containerIsFull(client)) {        // filled up: close it, next block 1 second later
+                    closeContainer(client);
+                    resumeDelay = CLOSE_DELAY;
+                    if (!finish(client, true)) return;
+                    break;
+                }
+                ScreenHandler handler = player.currentScreenHandler;
+                Slot nextSlot = null;
+                for (Slot sl : handler.slots) {
+                    if (sl.inventory == player.getInventory() && sl.hasStack() && !depositTried.contains(sl.id)
+                            && matchesItem(sl.getStack(), step.text)) {
+                        nextSlot = sl;
+                        break;
+                    }
+                }
+                if (nextSlot == null) {               // everything matching has been put away
+                    if (!finish(client, true)) return;
+                    break;
+                }
+                depositTried.add(nextSlot.id);        // shift-click one stack per tick
+                client.interactionManager.clickSlot(handler.syncId, nextSlot.id, 0, SlotActionType.QUICK_MOVE, player);
+            }
+            case CLOSE_CONTAINER -> {
+                if (containerOpen) closeContainer(client);
+                if (!finish(client, true)) return;
+                walkDir = containerOpen ? null : currentWalkDir();
+            }
+            case WAIT_OPEN -> {
+                if (containerOpen) {
+                    if (!finish(client, true)) return;
+                } else if (--waitTicks <= 0) {        // gave up waiting
+                    if (!finish(client, false)) return;
                     walkDir = currentWalkDir();
                 }
             }

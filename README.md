@@ -41,6 +41,13 @@ Build a walking program out of Scratch-style blocks, then run it.
   It also works in **server menus** (chest-style screens like storage or backpacks): glass panes and barriers are
   treated as menu decoration / buttons, not storage, so only the real storage slots decide whether it's full.
   If the container is **open and full**, the block **closes it**, waits **1 second**, then runs the blocks inside.
+  **put all [diamond] in container**: type an item id (`diamond`, `minecraft:diamond`), a server item's custom id
+  (like `ENCHANTED_DIAMOND`), or the item's name as shown in game. Once a container is open (it waits up to 5 s for one),
+  it shift-clicks every matching stack from your inventory into it, one stack per tick. If the container fills up, it
+  closes it and runs the next block 1 second later. If everything fits, it runs the next block and leaves it open.
+  If no container opens within 5 s it skips (counts as not done).
+  **close container** closes the open container. **wait for container, up to [5] s** waits for a menu to open
+  (handy after a `say /command` that opens one); it counts as done only if one opened in time.
   For **if holding**, click the box to use the item in your hand right now (right-click clears it).
 * **Sensing blocks (light blue):** **if looking at [block]** (click the box to use the block under your crosshair),
   **if health below [5] ❤** (hearts), **if y [below ▾] [64]**.
@@ -68,4 +75,4 @@ It pauses while a menu is open and stops if you die. Containers (chests, barrels
 exception: the script keeps running while one is open, except walk and go to blocks, which wait until it's closed.
 
 ## Install
-Put `lanewalker-5.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-5.5.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
