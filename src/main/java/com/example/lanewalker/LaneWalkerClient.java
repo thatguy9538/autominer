@@ -98,7 +98,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static final int DEPOSIT_OPEN_WAIT = 100;   // 5 seconds
     private static final java.util.Set<Integer> depositTried = new java.util.HashSet<>();
     private static final int DEPOSIT_INTERVAL = 10;     // ticks between stacks: 2 per second
-    private static int depositCooldown = 0;   // "hold key" block: pressed it yet?
+    private static int depositCooldown = 0;             // ticks until the next stack is moved
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
