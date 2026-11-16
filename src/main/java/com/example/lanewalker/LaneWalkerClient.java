@@ -96,7 +96,9 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static final int CLOSE_DELAY = 20;     // 1 second
     /** "put all in container": how long to wait for a container to open, and the slots already moved. */
     private static final int DEPOSIT_OPEN_WAIT = 100;   // 5 seconds
-    private static final java.util.Set<Integer> depositTried = new java.util.HashSet<>();   // "hold key" block: pressed it yet?
+    private static final java.util.Set<Integer> depositTried = new java.util.HashSet<>();
+    private static final int DEPOSIT_INTERVAL = 10;     // ticks between stacks: 2 per second
+    private static int depositCooldown = 0;   // "hold key" block: pressed it yet?
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
@@ -214,6 +216,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         if (step.kind == Program.Kind.HOLD_KEY) waitTicks = Math.max(1, step.amount2 * 2);
         if (step.kind == Program.Kind.DEPOSIT) waitTicks = DEPOSIT_OPEN_WAIT;
         depositTried.clear();
+        depositCooldown = 0;
         holdStarted = false;
         ClientPlayerEntity p = client.player;
         legStart = new Vec3d(p.getX(), p.getY(), p.getZ());
@@ -602,6 +605,10 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (!finish(client, true)) return;
                     break;
                 }
+                if (depositCooldown > 0) {            // 2 stacks a second
+                    depositCooldown--;
+                    break;
+                }
                 ScreenHandler handler = player.currentScreenHandler;
                 Slot nextSlot = null;
                 for (Slot sl : handler.slots) {
@@ -615,7 +622,8 @@ public class LaneWalkerClient implements ClientModInitializer {
                     if (!finish(client, true)) return;
                     break;
                 }
-                depositTried.add(nextSlot.id);        // shift-click one stack per tick
+                depositTried.add(nextSlot.id);        // shift-click one stack
+                depositCooldown = DEPOSIT_INTERVAL - 1;
                 client.interactionManager.clickSlot(handler.syncId, nextSlot.id, 0, SlotActionType.QUICK_MOVE, player);
             }
             case CLOSE_CONTAINER -> {
