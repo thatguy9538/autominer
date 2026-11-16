@@ -18,7 +18,7 @@ public class Program {
     }
 
     public enum Kind {
-        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF, IF_AT, REPEAT;
+        WALK_WALL, WALK_BLOCKS, WAIT, WAIT_RANDOM, SET_ANGLE, STOP_AT, GO_TO, IF, IF_AT, REPEAT, HOLD_KEY;
 
         public boolean isWalk() { return this == WALK_WALL || this == WALK_BLOCKS; }
 
@@ -41,7 +41,8 @@ public class Program {
          *  SET_ANGLE:   amount = yaw (x), amount2 = pitch (y), in degrees.
          *  STOP_AT, IF_AT: amount = block X, amount2 = block Z.
          *  GO_TO:       amount = X, amount2 = Y, amount3 = Z.
-         *  REPEAT:      amount = times, 0 = forever. */
+         *  REPEAT:      amount = times, 0 = forever.
+         *  HOLD_KEY:    amount = key code, amount2 = tenths of a second, amount3 = 1 for a mouse button. */
         public int amount;
         public int amount2;
         public int amount3;
@@ -84,6 +85,7 @@ public class Program {
                 case IF -> "if linked block is done";
                 case IF_AT -> "if at x " + amount + " z " + amount2;
                 case REPEAT -> amount == 0 ? "repeat forever" : "repeat " + amount + " times";
+                case HOLD_KEY -> "hold " + inputName(amount, amount3 == 1) + " for " + tenths(amount2) + " s";
             };
         }
     }
@@ -95,6 +97,19 @@ public class Program {
     /** Longest random wait, in tenths of a second (60 s). */
     public static final int MAX_TENTHS = 600;
     private static int nextId = 1;
+
+    /** Display name for a key or mouse button. */
+    public static String inputName(int code, boolean mouse) {
+        if (mouse) {
+            return switch (code) {
+                case 0 -> "left click";
+                case 1 -> "right click";
+                case 2 -> "middle click";
+                default -> "mouse " + (code + 1);
+            };
+        }
+        return LaneWalkerClient.keyName(code);
+    }
 
     public static String tenths(int t) {
         return (t / 10) + "." + (t % 10);
@@ -236,6 +251,10 @@ public class Program {
             } else if (kind == Kind.WAIT_RANDOM) {
                 a = clamp(a, 0, MAX_TENTHS);
                 b = clamp(b, 0, MAX_TENTHS);
+            } else if (kind == Kind.HOLD_KEY) {
+                a = clamp(a, 0, 400);
+                b = clamp(b, 1, MAX_TENTHS);
+                c = clamp(c, 0, 1);
             } else if (kind == Kind.REPEAT) {
                 a = clamp(a, 0, 100000);
             } else if (kind != Kind.IF) {

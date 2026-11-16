@@ -27,6 +27,10 @@ Build a walking program out of Scratch-style blocks, then run it.
   * **if done ●**: a C block. Click its ● and then another block to tie them with a string (in that block's colour).
     The blocks inside only run if the tied block completed the last time it ran. Right-click ● to cut the string.
   * `wait [1] seconds`, `random wait [0.5] to [2.0] s`, `stop at x [] z []` (stops the script the moment you step on that spot, wherever it sits in the script).
+* **Keys block (light blue):** **hold [left click] for [1.0] s** holds a key or mouse button down for that long,
+  then lets go and moves on. Click the key box, then press any key or click a mouse button (left / right / middle)
+  to choose it; Esc cancels. The time counts in 0.1 s steps (Shift = 1 s). Holding a movement key (W, A, S, D)
+  works too, and so does holding left click to keep mining or right click to keep using an item.
 * A block "completes" when it finishes normally. `walk N blocks` doesn't complete if a wall stops it early;
   an **if at** completes only when you were on its spot.
 * **Drop-downs (▾)** open a list when you click them. **Number boxes:** click = +1, right-click = -1, Shift = x10, or scroll.
@@ -40,4 +44,4 @@ Walk directions are relative to where you're looking. While it runs you can stil
 It pauses while a menu is open and stops if you die.
 
 ## Install
-Put `lanewalker-4.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `lanewalker-4.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.

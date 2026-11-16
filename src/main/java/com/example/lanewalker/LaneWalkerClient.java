@@ -70,6 +70,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int cooldown = 0;
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
+    private static boolean holdStarted = false;   // "hold key" block: pressed it yet?
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
@@ -183,6 +184,8 @@ public class LaneWalkerClient implements ClientModInitializer {
         } else {
             waitTicks = step.amount * 20;
         }
+        if (step.kind == Program.Kind.HOLD_KEY) waitTicks = Math.max(1, step.amount2 * 2);
+        holdStarted = false;
         ClientPlayerEntity p = client.player;
         legStart = new Vec3d(p.getX(), p.getY(), p.getZ());
 
@@ -390,6 +393,18 @@ public class LaneWalkerClient implements ClientModInitializer {
                 if (!finish(client, true)) return;
                 walkDir = currentWalkDir();
             }
+            case HOLD_KEY -> {
+                InputUtil.Key key = holdKey(step);
+                if (!holdStarted) {
+                    KeyBinding.onKeyPressed(key);    // counts as a click, like pressing it for real
+                    holdStarted = true;
+                }
+                if (--waitTicks <= 0) {
+                    KeyBinding.setKeyPressed(key, false);
+                    if (!finish(client, true)) return;
+                    walkDir = currentWalkDir();
+                }
+            }
             case WAIT, WAIT_RANDOM -> {
                 if (--waitTicks <= 0) {
                     if (!finish(client, true)) return;
@@ -427,6 +442,10 @@ public class LaneWalkerClient implements ClientModInitializer {
         o.backKey.setPressed(walkDir == Program.Dir.BACK);
         o.leftKey.setPressed(walkDir == Program.Dir.LEFT);
         o.rightKey.setPressed(walkDir == Program.Dir.RIGHT);
+        Program.Step now = current();
+        if (running && now != null && now.kind == Program.Kind.HOLD_KEY) {
+            KeyBinding.setKeyPressed(holdKey(now), true);   // keep holding (after the walk keys above)
+        }
     }
 
     /** The "stop at" block whose spot the player is standing on, or null. */
@@ -436,6 +455,12 @@ public class LaneWalkerClient implements ClientModInitializer {
             if (s.kind == Program.Kind.STOP_AT && s.amount == bx && s.amount2 == bz) return s;
         }
         return null;
+    }
+
+    private static InputUtil.Key holdKey(Program.Step step) {
+        return step.amount3 == 1
+                ? InputUtil.Type.MOUSE.createFromCode(step.amount)
+                : InputUtil.Type.KEYSYM.createFromCode(step.amount);
     }
 
     static void say(MinecraftClient client, Text msg) {
