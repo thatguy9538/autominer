@@ -26,12 +26,12 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 /**
  * Lane Walker (Fabric, Minecraft 1.21.10)
  *
- * Build a walking program out of Scratch-style blocks, then run it.
+ * Build walking scripts out of Scratch-style blocks, then run them.
+ * Each script starts with "when [key] pressed"; that key runs / stops it.
  *
  *   B            open the block editor
- *   K            run / stop the program
  *   /walk edit   open the block editor
- *   /walk run    run the program
+ *   /walk run    run the first script
  *   /walk stop   stop
  */
 public class LaneWalkerClient implements ClientModInitializer {
@@ -42,10 +42,14 @@ public class LaneWalkerClient implements ClientModInitializer {
     /** Ticks to wait after a walk step starts before a wall can end it. */
     private static final int WALL_COOLDOWN = 6;
 
-    private static KeyBinding runKey;
     private static KeyBinding editorKey;
 
+    /** All scripts. */
+    public static Workspace workspace;
+    /** The script that is running (or last ran). */
     public static Program program;
+    /** Script keys that were held down last tick, to spot new presses. */
+    private static final java.util.Set<Integer> keysDown = new java.util.HashSet<>();
     private static Path configFile;
 
     private static boolean running = false;
@@ -66,10 +70,9 @@ public class LaneWalkerClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         configFile = FabricLoader.getInstance().getConfigDir().resolve("lanewalker.txt");
-        program = Program.load(configFile);
+        workspace = Workspace.load(configFile);
+        program = workspace.scripts.get(0);
 
-        runKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.lanewalker.toggle", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY));
         editorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.lanewalker.editor", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_B, CATEGORY));
 
@@ -81,7 +84,12 @@ public class LaneWalkerClient implements ClientModInitializer {
                 return 1;
             }));
             walk.then(literal("run").executes(ctx -> {
-                start(MinecraftClient.getInstance());
+                for (Program p : workspace.scripts) {
+                    if (!p.steps.isEmpty()) {
+                        start(MinecraftClient.getInstance(), p);
+                        break;
+                    }
+                }
                 return 1;
             }));
             walk.then(literal("edit").executes(ctx -> {
@@ -93,12 +101,14 @@ public class LaneWalkerClient implements ClientModInitializer {
         });
     }
 
-    public static String runKeyName() {
-        return runKey.getBoundKeyLocalizedText().getString();
+    /** Display name for a GLFW key code, e.g. "K" or "Left Shift". */
+    public static String keyName(int key) {
+        if (key < 0) return "?";
+        return InputUtil.Type.KEYSYM.createFromCode(key).getLocalizedText().getString();
     }
 
     public static void saveProgram() {
-        program.save(configFile);
+        workspace.save(configFile);
     }
 
     public static void openEditor(MinecraftClient client) {
@@ -106,13 +116,19 @@ public class LaneWalkerClient implements ClientModInitializer {
         client.setScreen(new BlockEditorScreen());
     }
 
-    public static void start(MinecraftClient client) {
-        if (client.player == null) return;
-        if (program.steps.isEmpty()) {
-            say(client, Text.literal("Lane Walker: your program is empty. Press B to add blocks.")
-                    .formatted(Formatting.RED));
+    public static void start(MinecraftClient client, Program script) {
+        if (client.player == null || script == null) return;
+        if (script.steps.isEmpty()) {
+            say(client, Text.literal("Lane Walker: the [" + keyName(script.key)
+                    + "] script is empty. Press B to add blocks.").formatted(Formatting.RED));
             return;
         }
+        if (running) {                       // switching scripts: let go of the old one's keys first
+            running = false;
+            controllingVertical = false;
+            KeyBinding.updatePressedStates();
+        }
+        program = script;
         running = true;
         tripsDone = 0;
         outcomes.clear();
@@ -184,9 +200,26 @@ public class LaneWalkerClient implements ClientModInitializer {
         while (editorKey.wasPressed()) {
             if (client.currentScreen == null) openEditor(client);
         }
-        while (runKey.wasPressed()) {
-            if (running) stop(client, "stopped");
-            else start(client);
+        // each script's "when [key] pressed" key runs it, or stops it if it's already running
+        if (client.currentScreen == null) {
+            long handle = client.getWindow().getHandle();
+            for (Program script : workspace.scripts) {
+                int key = script.key;
+                if (key < GLFW.GLFW_KEY_SPACE || key > GLFW.GLFW_KEY_LAST) continue;
+                boolean down = GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS;
+                if (down && !keysDown.contains(key)) {
+                    if (running && program == script) stop(client, "stopped");
+                    else start(client, script);
+                }
+            }
+            keysDown.clear();
+            for (Program script : workspace.scripts) {
+                int key = script.key;
+                if (key >= GLFW.GLFW_KEY_SPACE && key <= GLFW.GLFW_KEY_LAST
+                        && GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS) keysDown.add(key);
+            }
+        } else {
+            keysDown.clear();
         }
         if (!running) return;
         if (program.steps.isEmpty()) {

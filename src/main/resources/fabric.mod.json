@@ -3,7 +3,7 @@
   "id": "lanewalker",
   "version": "${version}",
   "name": "Lane Walker",
-  "description": "Build a walking program from Scratch-style blocks (B) and run it (K).",
+  "description": "Build walking scripts from Scratch-style blocks (B). Each script runs on its own key.",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",

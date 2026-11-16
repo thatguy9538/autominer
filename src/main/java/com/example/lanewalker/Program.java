@@ -1,13 +1,9 @@
 package com.example.lanewalker;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** The block program the player builds in the editor: repeat N times { steps }. */
+/** One script: "when [key] pressed" + repeat N times { steps }. */
 public class Program {
 
     public enum Dir {
@@ -95,6 +91,8 @@ public class Program {
         return (t / 10) + "." + (t % 10);
     }
 
+    /** GLFW key code that runs this script, or -1 for none. */
+    public int key = org.lwjgl.glfw.GLFW.GLFW_KEY_K;
     /** Round trips through the steps before stopping; 0 = forever. */
     public int repeats = 0;
     public final List<Step> steps = new ArrayList<>();
@@ -106,69 +104,56 @@ public class Program {
         return p;
     }
 
-    // ---- saving / loading (simple text file in .minecraft/config) ----
+    // ---- saving / loading (see Workspace for the file itself) ----
 
-    public void save(Path file) {
-        StringBuilder sb = new StringBuilder("repeat ").append(repeats).append('\n');
+    void writeTo(StringBuilder sb) {
+        sb.append("script ").append(key).append('\n');
+        sb.append("repeat ").append(repeats).append('\n');
         for (Step s : steps) {
             sb.append("step ").append(s.kind.name()).append(' ').append(s.dir.name()).append(' ').append(s.amount)
                     .append(' ').append(s.amount2).append(' ').append(s.amount3)
                     .append(' ').append(s.id).append(' ').append(s.link).append('\n');
         }
-        try {
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, sb.toString(), StandardCharsets.UTF_8);
-        } catch (IOException ignored) {
-        }
     }
 
-    public static Program load(Path file) {
-        if (!Files.exists(file)) return defaults();
-        try {
-            Program p = new Program();
-            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-                String[] parts = line.trim().split("\\s+");
-                int id = -1, link = -1;
-                if (parts.length == 8 && parts[0].equals("step")) {   // newest format
-                    id = Integer.parseInt(parts[6]);
-                    link = Integer.parseInt(parts[7]);
-                    parts = java.util.Arrays.copyOfRange(parts, 1, 6);
-                }
-                if (parts.length == 2 && parts[0].equals("repeat")) {
-                    p.repeats = clamp(Integer.parseInt(parts[1]), 0, 100000);
-                } else if (parts.length >= 3 && parts.length <= 5 && p.steps.size() < MAX_STEPS) {
-                    Kind kind = Kind.valueOf(parts[0]);
-                    int a = Integer.parseInt(parts[2]);
-                    int b = parts.length >= 4 ? Integer.parseInt(parts[3]) : a;
-                    int c = parts.length >= 5 ? Integer.parseInt(parts[4]) : 0;
-                    if (kind == Kind.GO_TO) {
-                        a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
-                        b = clamp(b, MIN_Y, MAX_Y);
-                        c = clamp(c, -COORD_LIMIT, COORD_LIMIT);
-                    } else if (kind == Kind.STOP_AT) {
-                        a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
-                        b = clamp(b, -COORD_LIMIT, COORD_LIMIT);
-                    } else if (kind == Kind.SET_ANGLE) {
-                        a = clamp(a, -180, 180);
-                        b = clamp(b, -90, 90);
-                    } else if (kind == Kind.WAIT_RANDOM) {
-                        a = clamp(a, 0, MAX_TENTHS);
-                        b = clamp(b, 0, MAX_TENTHS);
-                    } else {
-                        a = clamp(a, 1, MAX_AMOUNT);
-                    }
-                    Step st = new Step(kind, Dir.valueOf(parts[1]), a, b, c);
-                    if (id > 0) {
-                        st.id = id;
-                        nextId = Math.max(nextId, id + 1);
-                    }
-                    st.link = link;
-                    p.steps.add(st);
-                }
+    /** Reads one "repeat ..." or "step ..." line (also the older formats) into this script. */
+    void readLine(String[] parts) {
+        int id = -1, link = -1;
+        if (parts.length == 8 && parts[0].equals("step")) {   // newest format
+            id = Integer.parseInt(parts[6]);
+            link = Integer.parseInt(parts[7]);
+            parts = java.util.Arrays.copyOfRange(parts, 1, 6);
+        }
+        if (parts.length == 2 && parts[0].equals("repeat")) {
+            repeats = clamp(Integer.parseInt(parts[1]), 0, 100000);
+        } else if (parts.length >= 3 && parts.length <= 5 && steps.size() < MAX_STEPS) {
+            Kind kind = Kind.valueOf(parts[0]);
+            int a = Integer.parseInt(parts[2]);
+            int b = parts.length >= 4 ? Integer.parseInt(parts[3]) : a;
+            int c = parts.length >= 5 ? Integer.parseInt(parts[4]) : 0;
+            if (kind == Kind.GO_TO) {
+                a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
+                b = clamp(b, MIN_Y, MAX_Y);
+                c = clamp(c, -COORD_LIMIT, COORD_LIMIT);
+            } else if (kind == Kind.STOP_AT) {
+                a = clamp(a, -COORD_LIMIT, COORD_LIMIT);
+                b = clamp(b, -COORD_LIMIT, COORD_LIMIT);
+            } else if (kind == Kind.SET_ANGLE) {
+                a = clamp(a, -180, 180);
+                b = clamp(b, -90, 90);
+            } else if (kind == Kind.WAIT_RANDOM) {
+                a = clamp(a, 0, MAX_TENTHS);
+                b = clamp(b, 0, MAX_TENTHS);
+            } else {
+                a = clamp(a, 1, MAX_AMOUNT);
             }
-            return p;
-        } catch (Exception e) {
-            return defaults();
+            Step st = new Step(kind, Dir.valueOf(parts[1]), a, b, c);
+            if (id > 0) {
+                st.id = id;
+                nextId = Math.max(nextId, id + 1);
+            }
+            st.link = link;
+            steps.add(st);
         }
     }
 

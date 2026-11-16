@@ -1,0 +1,66 @@
+package com.example.lanewalker;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+/** All of the player's scripts, saved together in .minecraft/config/lanewalker.txt. */
+public class Workspace {
+
+    public static final int MAX_SCRIPTS = 8;
+
+    public final List<Program> scripts = new ArrayList<>();
+
+    public static Workspace defaults() {
+        Workspace w = new Workspace();
+        w.scripts.add(Program.defaults());
+        return w;
+    }
+
+    /** The script a block belongs to, or null. */
+    public Program scriptOf(Program.Step step) {
+        for (Program p : scripts) if (p.steps.contains(step)) return p;
+        return null;
+    }
+
+    public void save(Path file) {
+        StringBuilder sb = new StringBuilder();
+        for (Program p : scripts) p.writeTo(sb);
+        try {
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, sb.toString(), StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+        }
+    }
+
+    public static Workspace load(Path file) {
+        if (!Files.exists(file)) return defaults();
+        try {
+            Workspace w = new Workspace();
+            Program current = null;
+            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length == 0 || parts[0].isEmpty()) continue;
+                if (parts[0].equals("script") && parts.length == 2) {
+                    if (w.scripts.size() >= MAX_SCRIPTS) break;
+                    current = new Program();
+                    current.key = Integer.parseInt(parts[1]);
+                    w.scripts.add(current);
+                    continue;
+                }
+                if (current == null) {            // older save with one script and no "script" line
+                    current = new Program();
+                    w.scripts.add(current);
+                }
+                current.readLine(parts);
+            }
+            if (w.scripts.isEmpty()) return defaults();
+            return w;
+        } catch (Exception e) {
+            return defaults();
+        }
+    }
+}
