@@ -27,7 +27,7 @@ public class Program {
         // control
         REPEAT, REPEAT_UNTIL, IF_AT, IF_WALL, IF, WAIT, WAIT_RANDOM, WAIT_UNTIL, STOP_AT, STOP_SCRIPT, RUN_SCRIPT,
         // inventory
-        SELECT_SLOT, IF_HOLDING, IF_INV_FULL,
+        SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL,
         // sensing
         IF_LOOKING, IF_HEALTH, IF_Y,
         // keys
@@ -42,7 +42,7 @@ public class Program {
         /** If blocks: they check something and can have an "else" section. */
         public boolean isConditional() {
             return this == IF || this == IF_AT || this == IF_WALL || this == IF_HOLDING || this == IF_INV_FULL
-                    || this == IF_LOOKING || this == IF_HEALTH || this == IF_Y;
+                    || this == IF_CONTAINER_FULL || this == IF_LOOKING || this == IF_HEALTH || this == IF_Y;
         }
 
         /** "C" blocks that hold other blocks inside them. */
@@ -56,7 +56,7 @@ public class Program {
         public Category category() {
             return switch (this) {
                 case WALK_WALL, WALK_BLOCKS, SET_ANGLE, GO_TO -> Category.MOTION;
-                case SELECT_SLOT, IF_HOLDING, IF_INV_FULL -> Category.INVENTORY;
+                case SELECT_SLOT, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL -> Category.INVENTORY;
                 case IF_LOOKING, IF_HEALTH, IF_Y, HOLD_KEY -> Category.SENSING;
                 case SAY, SOUND -> Category.SOUND;
                 case COMMENT -> Category.NOTE;
@@ -150,6 +150,7 @@ public class Program {
                 case SELECT_SLOT -> "select slot " + amount;
                 case IF_HOLDING -> "if holding " + prettyId(text);
                 case IF_INV_FULL -> "if inventory full";
+                case IF_CONTAINER_FULL -> "if container full";
                 case IF_LOOKING -> "if looking at " + prettyId(text);
                 case IF_HEALTH -> "if health below " + amount;
                 case IF_Y -> "if y " + (mode == 1 ? "above " : "below ") + amount;
@@ -289,7 +290,7 @@ public class Program {
             case IF_HEALTH -> s.amount = clamp(s.amount, 1, 20);
             case IF_Y -> s.amount = clamp(s.amount, MIN_Y, MAX_Y);
             case SOUND -> s.amount = clamp(s.amount, 0, SOUND_NAMES.size() - 1);
-            case RUN_SCRIPT, IF, IF_WALL, IF_HOLDING, IF_INV_FULL, IF_LOOKING, STOP_SCRIPT, SAY, COMMENT -> { }
+            case RUN_SCRIPT, IF, IF_WALL, IF_HOLDING, IF_INV_FULL, IF_CONTAINER_FULL, IF_LOOKING, STOP_SCRIPT, SAY, COMMENT -> { }
             default -> s.amount = clamp(s.amount, 1, MAX_AMOUNT);
         }
         s.mode = clamp(s.mode, 0, 1);

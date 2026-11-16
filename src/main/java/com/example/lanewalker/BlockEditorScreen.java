@@ -98,6 +98,7 @@ public class BlockEditorScreen extends Screen {
             new Program.Step(Program.Kind.SELECT_SLOT, Program.Dir.LEFT, 1),
             new Program.Step(Program.Kind.IF_HOLDING, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF_INV_FULL, Program.Dir.LEFT, 0),
+            new Program.Step(Program.Kind.IF_CONTAINER_FULL, Program.Dir.LEFT, 0),
             // sensing
             new Program.Step(Program.Kind.IF_LOOKING, Program.Dir.LEFT, 0),
             new Program.Step(Program.Kind.IF_HEALTH, Program.Dir.LEFT, 5),
@@ -111,7 +112,7 @@ public class BlockEditorScreen extends Screen {
     };
     /** Palette section headings, by the template they come before. */
     private static final Map<Integer, String> SECTIONS = Map.of(
-            0, "Motion", 4, "Control", 15, "Inventory", 18, "Sensing", 21, "Keys", 22, "Other");
+            0, "Motion", 4, "Control", 15, "Inventory", 19, "Sensing", 22, "Keys", 23, "Other");
 
     /** Keys handed out to new scripts, in order. */
     private static final int[] DEFAULT_KEYS = {
@@ -1133,6 +1134,7 @@ public class BlockEditorScreen extends Screen {
             case IF_HOLDING -> List.of(new Seg(SegType.LABEL, "if holding"),
                     new Seg(SegType.PICK, s.text.isEmpty() ? "click: held item" : Program.prettyId(s.text)));
             case IF_INV_FULL -> List.of(new Seg(SegType.LABEL, "if inventory full"));
+            case IF_CONTAINER_FULL -> List.of(new Seg(SegType.LABEL, "if container full"));
             case IF_LOOKING -> List.of(new Seg(SegType.LABEL, "if looking at"),
                     new Seg(SegType.PICK, s.text.isEmpty() ? "click: block" : Program.prettyId(s.text)));
             case IF_HEALTH -> List.of(new Seg(SegType.LABEL, "if health below"),

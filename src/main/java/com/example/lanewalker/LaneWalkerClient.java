@@ -24,6 +24,9 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.registry.Registries;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.Slot;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Path;
@@ -77,7 +80,12 @@ public class LaneWalkerClient implements ClientModInitializer {
     private static int cooldown = 0;
     private static int waitTicks = 0;
     private static Vec3d legStart = null;
-    private static boolean holdStarted = false;   // "hold key" block: pressed it yet?
+    private static boolean holdStarted = false;
+    /** "if container full": what we saw in each container (by block position) the last time it was open. */
+    private static final java.util.Map<BlockPos, Boolean> containerFull = new java.util.HashMap<>();
+    private static BlockPos openContainerPos = null;      // container that's open right now (if we know where)
+    private static Boolean lastContainerFull = null;       // the most recently opened container
+    private static boolean containerWasOpen = false;   // "hold key" block: pressed it yet?
     private static boolean wasAtStopSpot = false;
     /** For "if" blocks: did each block (by id) complete the last time it ran? */
     private static final java.util.Map<Integer, Boolean> outcomes = new java.util.HashMap<>();
@@ -303,11 +311,46 @@ public class LaneWalkerClient implements ClientModInitializer {
             case IF_WALL -> touchingWall(client);
             case IF_HOLDING -> Registries.ITEM.getId(pl.getMainHandStack().getItem()).toString().equals(s.text);
             case IF_INV_FULL -> pl.getInventory().getEmptySlot() == -1;
+            case IF_CONTAINER_FULL -> containerIsFull(client);
             case IF_LOOKING -> s.text.equals(lookedAtBlock(client));
             case IF_HEALTH -> pl.getHealth() < s.amount * 2f;
             case IF_Y -> s.mode == 1 ? pl.getY() > s.amount : pl.getY() < s.amount;
             default -> false;
         };
+    }
+
+    /** Remember how full each container is while it's open (the game only sends what's inside then). */
+    private static void trackContainer(MinecraftClient client) {
+        ClientPlayerEntity pl = client.player;
+        ScreenHandler handler = pl.currentScreenHandler;
+        boolean open = client.currentScreen instanceof HandledScreen<?> && handler != null
+                && handler != pl.playerScreenHandler;
+        if (open && !containerWasOpen) {          // just opened: it's the block we were looking at
+            openContainerPos = client.crosshairTarget instanceof BlockHitResult bhr
+                    && bhr.getType() == HitResult.Type.BLOCK ? bhr.getBlockPos().toImmutable() : null;
+        }
+        if (open) {
+            boolean any = false, full = true;
+            for (Slot slot : handler.slots) {
+                if (slot.inventory == pl.getInventory()) continue;   // skip your own inventory
+                any = true;
+                if (!slot.hasStack()) full = false;
+            }
+            if (any) {
+                lastContainerFull = full;
+                if (openContainerPos != null) containerFull.put(openContainerPos, full);
+            }
+        }
+        containerWasOpen = open;
+    }
+
+    /** The open container, else the one you're looking at, else the last one you opened. */
+    private static boolean containerIsFull(MinecraftClient client) {
+        if (client.crosshairTarget instanceof BlockHitResult bhr && bhr.getType() == HitResult.Type.BLOCK) {
+            Boolean seen = containerFull.get(bhr.getBlockPos());
+            if (seen != null) return seen;
+        }
+        return lastContainerFull != null && lastContainerFull;
     }
 
     /** Is there a solid block right in front of the player (at feet or head height)? */
@@ -367,6 +410,7 @@ public class LaneWalkerClient implements ClientModInitializer {
         } else {
             keysDown.clear();
         }
+        trackContainer(client);
         if (!running) return;
         if (program.steps.isEmpty()) {
             stop(client, "stopped (empty program)");
