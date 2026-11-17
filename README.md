@@ -1,4 +1,4 @@
-# Auto Miner 2.2: Fabric mod for Minecraft 1.21.10
+# Auto Miner 2.3: Fabric mod for Minecraft 1.21.10
 
 Pick one or more blocks, and the mod mines every matching block within your reach that you can see.
 Built to cope with custom server blocks and drills.
@@ -24,6 +24,10 @@ Rebind them in **Options → Controls → Key Binds → Auto Miner**.
   it's dropped. A block that hasn't broken after 30 seconds (a ghost block, say) is skipped for 10 seconds.
 * **Finds odd shapes:** it looks for a clear line of sight to 55 points on the block's real shape, so heads, slabs and
   blocks round corners are found.
+* **Paths:** it plans a chain of up to 12 connected target blocks (touching each other, diagonals count) and mines
+  them in order, so it works along a vein instead of jumping around. If a queued block changes before it gets there
+  (someone else mined it, it changed stage, it regenerated), that block is skipped. When only 2 blocks are left in the
+  path it plans the next one, starting from the target closest to where the current path ends.
 * **Smooth camera:** it turns quickly when the next block is far off to the side, then slows down as it lines up,
   instead of snapping. Hold click mode only presses the button once the crosshair is on the block.
 * **Short pause** (0.25 s) after each block, so the server keeps up.
@@ -37,5 +41,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-2.2.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-2.3.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

@@ -34,6 +34,8 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.RaycastContext;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,6 +54,8 @@ import java.util.regex.Pattern;
  *  - "hold click" mode aims at the block and holds left click, so the server
  *    and your drill decide how fast it breaks
  *  - short pause after each block
+ *  - plans a path of connected target blocks and mines them in order; queued
+ *    blocks that change are skipped, and the next path is planned near the end
  *  - aims at particles the server puts on the block (e.g. "precision mining"
  *    targets), which some servers reward with faster mining
  *
@@ -102,6 +106,17 @@ public class AutoMinerClient implements ClientModInitializer {
     private static final int PARTICLE_TICKS = 40;
 
     private record Aim(Direction side, Vec3d point) {}
+
+    /** A block queued in the path, and what it was when we queued it. */
+    private record PathEntry(BlockPos pos, String key) {}
+
+    /** The planned path: connected target blocks to mine next, in order. */
+    private static final Deque<PathEntry> path = new ArrayDeque<>();
+    /** Longest path to plan at once, and how few blocks are left before planning the next one. */
+    private static final int MAX_PATH = 12, EXTEND_AT = 2;
+    /** After failing to find more blocks, wait this many ticks before searching again. */
+    private static final int EXTEND_RETRY = 5;
+    private static int extendCooldown = 0;
 
     @Override
     public void onInitializeClient() {
@@ -173,14 +188,21 @@ public class AutoMinerClient implements ClientModInitializer {
             }
         }
 
-        // ---- pick the closest target if we have nothing
+        // ---- follow the path: skip queued blocks that changed, take the next one, plan ahead
+        prunePath(world);
+        if (extendCooldown > 0) extendCooldown--;
         if (currentPos == null) {
-            pickClosest(world, eye, player);
+            takeFromPath(world, eye, player);
+            if (currentPos == null && extendCooldown == 0) {
+                extendPath(world, eye, player);
+                takeFromPath(world, eye, player);
+            }
             if (currentPos == null) {               // nothing in reach
                 releaseAttack(client);
                 return;
             }
         }
+        if (path.size() <= EXTEND_AT && extendCooldown == 0) extendPath(world, eye, player);   // nearing the end
 
         // ---- aim at the server's particle on the block if there is one (faster mining on some servers)
         Aim pAim = particleAim(world, eye, player);
@@ -315,6 +337,8 @@ public class AutoMinerClient implements ClientModInitializer {
 
     private static void resetCurrent(MinecraftClient client) {
         if (currentPos != null) dropBlock(client);
+        path.clear();
+        extendCooldown = 0;
         lostTicks = 0;
         blockTicks = 0;
     }
@@ -324,40 +348,87 @@ public class AutoMinerClient implements ClientModInitializer {
         return state.isAir() || state.isOf(Blocks.BEDROCK) || state.isOf(Blocks.BARRIER);
     }
 
-    private static void pickClosest(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
+    // ------------------------------------------------------------------ paths
+
+    /** Drop queued blocks that have changed (or are gone) since they were queued. */
+    private static void prunePath(ClientWorld world) {
+        path.removeIf(e -> !keyOf(world, e.pos()).equals(e.key()));
+    }
+
+    /** Make the next queued block the current one (skipping any that are out of reach or sight now). */
+    private static void takeFromPath(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
+        while (!path.isEmpty()) {
+            PathEntry e = path.pollFirst();
+            if (!keyOf(world, e.pos()).equals(e.key()) || !isTarget(world, e.pos())) continue;   // changed: skip
+            if (skipped.containsKey(e.pos()) || !player.canInteractWithBlockAt(e.pos(), 0.0)) continue;
+            Aim aim = visibleAim(world, eye, e.pos(), player);
+            if (aim == null) continue;
+            currentPos = e.pos();
+            currentSide = aim.side();
+            currentAim = aim.point();
+            started = false;
+            lostTicks = 0;
+            blockTicks = 0;
+            return;
+        }
+    }
+
+    /**
+     * Add blocks to the end of the path. Grows the chain through touching target blocks
+     * (diagonals count); when it can't grow, starts the next path at the target closest
+     * to where this one ends.
+     */
+    private static void extendPath(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
         skipped.values().removeIf(until -> until < tickCount);
-        int r = (int) Math.ceil(player.getBlockInteractionRange()) + 1;
-        BlockPos center = BlockPos.ofFloored(eye);
+        int before = path.size();
+        while (path.size() < MAX_PATH) {
+            BlockPos tail = !path.isEmpty() ? path.peekLast().pos() : currentPos;
+            PathEntry next = tail != null ? nearestTarget(world, eye, player, tail, 1) : null;   // touching the tail
+            if (next == null) {
+                int r = (int) Math.ceil(player.getBlockInteractionRange()) + 1;
+                Vec3d from = tail != null ? Vec3d.ofCenter(tail) : eye;
+                next = nearestTarget(world, eye, player, from, r);           // start the next path
+            }
+            if (next == null) break;
+            path.addLast(next);
+        }
+        if (path.size() == before) extendCooldown = EXTEND_RETRY;          // nothing new: search again shortly
+    }
+
+    private static PathEntry nearestTarget(ClientWorld world, Vec3d eye, ClientPlayerEntity player, BlockPos around, int r) {
+        return nearestTarget(world, eye, player, Vec3d.ofCenter(around), r);
+    }
+
+    /** The target block within r blocks of `from` that is closest to it, not queued, in reach and in sight. */
+    private static PathEntry nearestTarget(ClientWorld world, Vec3d eye, ClientPlayerEntity player, Vec3d from, int r) {
+        BlockPos center = BlockPos.ofFloored(from);
         BlockPos.Mutable pos = new BlockPos.Mutable();
-        BlockPos best = null;
-        Aim bestAim = null;
+        PathEntry best = null;
         double bestDist = Double.MAX_VALUE;
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 for (int z = -r; z <= r; z++) {
                     pos.set(center.getX() + x, center.getY() + y, center.getZ() + z);
-                    double d = eye.squaredDistanceTo(Vec3d.ofCenter(pos));
+                    Vec3d c = Vec3d.ofCenter(pos);
+                    // closest to `from`, ties broken by closest to your eyes
+                    double d = c.squaredDistanceTo(from) * 100 + c.squaredDistanceTo(eye);
                     if (d >= bestDist) continue;
+                    if (pos.equals(currentPos) || queued(pos)) continue;
                     if (!isTarget(world, pos) || skipped.containsKey(pos)) continue;
                     BlockPos candidate = pos.toImmutable();
                     if (!player.canInteractWithBlockAt(candidate, 0.0)) continue;
-                    Aim aim = visibleAim(world, eye, candidate, player);
-                    if (aim != null) {
-                        bestDist = d;
-                        best = candidate;
-                        bestAim = aim;
-                    }
+                    if (visibleAim(world, eye, candidate, player) == null) continue;
+                    bestDist = d;
+                    best = new PathEntry(candidate, keyOf(world, candidate));
                 }
             }
         }
-        if (best != null) {
-            currentPos = best;
-            currentSide = bestAim.side();
-            currentAim = bestAim.point();
-            started = false;
-            lostTicks = 0;
-            blockTicks = 0;
-        }
+        return best;
+    }
+
+    private static boolean queued(BlockPos pos) {
+        for (PathEntry e : path) if (e.pos().equals(pos)) return true;
+        return false;
     }
 
     // ------------------------------------------------------------------ matching
