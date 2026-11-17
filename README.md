@@ -1,4 +1,4 @@
-# Auto Miner 2.3: Fabric mod for Minecraft 1.21.10
+# Auto Miner 2.4: Fabric mod for Minecraft 1.21.10
 
 Pick one or more blocks, and the mod mines every matching block within your reach that you can see.
 Built to cope with custom server blocks and drills.
@@ -6,12 +6,28 @@ Built to cope with custom server blocks and drills.
 ## Controls
 | Key | Action |
 |-----|--------|
+| **O** | Open the Auto Miner menu |
 | **G** | Add the block you're looking at to the target list (press again to remove it) |
 | **J** | Clear the target list |
 | **H** | Turn mining on / off |
 | **L** | Switch mode: **hold click** (default) / **classic** |
 
 Rebind them in **Options → Controls → Key Binds → Auto Miner**.
+
+## The menu (O)
+* **Mining ON/OFF**, **Mode** (hold click / classic) and **+ Add looked-at** (adds or removes the block under your crosshair).
+* **Settings:** **Turn** (how fast the camera turns, 5-60% of the remaining angle per tick), **Pause** after each block
+  (0-2 s), **Path** (how many blocks to plan ahead, 1-40). Use - and +.
+* **Targets**, highest priority first. Each has a **priority from 1 (Lowest) to 5 (Highest)**, default 3; use - and +
+  to change it, and the red X to remove it. Scroll if the list is long.
+* Everything (targets, priorities, settings) is saved to `.minecraft/config/autominer.txt`.
+
+## Priorities
+* Higher priority blocks are always picked first.
+* Among blocks with the same priority it prefers ones **touching** the last block in the path (so it follows veins),
+  then the closest.
+* Once a second, if a block with a **higher** priority than anything in the planned path is in reach and in sight, it
+  throws the plan away and goes there next (it still finishes the block it's already breaking).
 
 ## How it handles custom blocks and drills
 * **Head blocks are told apart by their skin.** Adding a player-head block only targets heads with that same texture.
@@ -41,5 +57,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-2.3.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-2.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

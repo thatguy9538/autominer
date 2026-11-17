@@ -3,6 +3,7 @@ package com.example.autominer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.AbstractSkullBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -34,35 +35,36 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.RaycastContext;
 import org.lwjgl.glfw.GLFW;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Auto Miner 2.0 (Fabric, Minecraft 1.21.10)
+ * Auto Miner (Fabric, Minecraft 1.21.10)
  *
  * Mines the blocks you pick that are within your reach and in sight, and copes
  * with custom server blocks and drills:
  *  - player-head blocks are told apart by their skin texture
- *  - add several blocks (e.g. every stage of an ore) and they all count as targets
- *  - once it starts on a block it keeps going until the block is gone (air /
- *    bedrock), even if it changes into another block on the way
- *  - "hold click" mode aims at the block and holds left click, so the server
- *    and your drill decide how fast it breaks
- *  - short pause after each block
- *  - plans a path of connected target blocks and mines them in order; queued
- *    blocks that change are skipped, and the next path is planned near the end
- *  - aims at particles the server puts on the block (e.g. "precision mining"
- *    targets), which some servers reward with faster mining
+ *  - once it starts on a block it keeps going until the block is gone (air / bedrock)
+ *  - "hold click" mode aims at the block and holds left click
+ *  - aims at particles the server puts on the block (e.g. "precision mining")
+ *  - plans paths of connected target blocks; queued blocks that change are skipped
+ *  - each target has a priority (1-5): higher ones are mined first
+ *  - a menu (O) to manage targets, priorities and settings; all saved to config/autominer.txt
  *
- *   G = add / remove the block you're looking at
- *   J = clear the list
- *   H = turn mining on / off
- *   L = switch mode: hold click (default) / classic
+ *   O = menu   G = add / remove the block you're looking at   J = clear the list
+ *   H = turn mining on / off   L = switch mode: hold click / classic
  */
 public class AutoMinerClient implements ClientModInitializer {
 
@@ -73,23 +75,45 @@ public class AutoMinerClient implements ClientModInitializer {
 
     /** Ticks a block may be out of sight before giving up on it. */
     private static final int GRACE_TICKS = 10;
-    /** Ticks to wait after a block breaks before starting the next one. */
-    private static final int PAUSE_TICKS = 5;
     /** Give up on a block that hasn't broken after this long (30 s), and skip it for a while. */
     private static final int MAX_BLOCK_TICKS = 600;
     private static final int SKIP_TICKS = 200;
+    /** How often to look for a higher-priority block than the planned path (1 s). */
+    private static final int PRIORITY_CHECK_TICKS = 20;
 
     private static final Pattern TEXTURE = Pattern.compile("value:\"([^\"]+)\"");
 
-    private static KeyBinding selectKey, toggleKey, clearKey, modeKey;
+    // ---- settings (shown in the menu, saved to the config file)
+    public static boolean holdMode = true;
+    /** Fraction of the remaining angle turned per tick. */
+    public static float turnFraction = 0.20f;
+    /** Ticks to wait after each block. */
+    public static int pauseSetting = 5;
+    /** Longest path planned at once. */
+    public static int maxPath = 12;
 
-    /** Target keys ("minecraft:stone", "minecraft:player_head#1a2b3c") and their display names. */
-    private static final Map<String, Text> targets = new LinkedHashMap<>();
+    /** A block type to mine. */
+    public static class Target {
+        public String name;
+        public int priority;
+
+        Target(String name, int priority) {
+            this.name = name;
+            this.priority = priority;
+        }
+    }
+
+    public static final int MIN_PRIORITY = 1, MAX_PRIORITY = 5, DEFAULT_PRIORITY = 3;
+
+    /** Target keys ("minecraft:stone", "minecraft:player_head#1a2b3c") to their name and priority. */
+    public static final Map<String, Target> targets = new LinkedHashMap<>();
     /** Blocks we gave up on, and the tick until which to skip them. */
     private static final Map<BlockPos, Long> skipped = new HashMap<>();
 
-    private static boolean enabled = false;
-    private static boolean holdMode = true;
+    private static KeyBinding selectKey, toggleKey, clearKey, modeKey, menuKey;
+    private static Path configFile;
+
+    public static boolean enabled = false;
     private static BlockPos currentPos = null;
     private static Direction currentSide = Direction.UP;
     private static Vec3d currentAim = null;
@@ -102,7 +126,6 @@ public class AutoMinerClient implements ClientModInitializer {
     private static Vec3d particlePoint = null;
     private static BlockPos particleBlock = null;
     private static long particleTick = 0;
-    /** How long to keep aiming at a particle after it appeared (2 s). */
     private static final int PARTICLE_TICKS = 40;
 
     private record Aim(Direction side, Vec3d point) {}
@@ -110,16 +133,15 @@ public class AutoMinerClient implements ClientModInitializer {
     /** A block queued in the path, and what it was when we queued it. */
     private record PathEntry(BlockPos pos, String key) {}
 
-    /** The planned path: connected target blocks to mine next, in order. */
     private static final Deque<PathEntry> path = new ArrayDeque<>();
-    /** Longest path to plan at once, and how few blocks are left before planning the next one. */
-    private static final int MAX_PATH = 12, EXTEND_AT = 2;
-    /** After failing to find more blocks, wait this many ticks before searching again. */
-    private static final int EXTEND_RETRY = 5;
+    private static final int EXTEND_AT = 2, EXTEND_RETRY = 5;
     private static int extendCooldown = 0;
 
     @Override
     public void onInitializeClient() {
+        configFile = FabricLoader.getInstance().getConfigDir().resolve("autominer.txt");
+        load();
+        menuKey = reg("key.autominer.menu", GLFW.GLFW_KEY_O);
         selectKey = reg("key.autominer.select", GLFW.GLFW_KEY_G);
         toggleKey = reg("key.autominer.toggle", GLFW.GLFW_KEY_H);
         clearKey = reg("key.autominer.clear", GLFW.GLFW_KEY_J);
@@ -129,6 +151,61 @@ public class AutoMinerClient implements ClientModInitializer {
 
     private static KeyBinding reg(String name, int key) {
         return KeyBindingHelper.registerKeyBinding(new KeyBinding(name, InputUtil.Type.KEYSYM, key, CATEGORY));
+    }
+
+    // ------------------------------------------------------------------ actions (also used by the menu)
+
+    /** Adds or removes the block under the crosshair. Returns a message to show. */
+    public static Text toggleLookedAt(MinecraftClient client) {
+        ClientWorld world = client.world;
+        HitResult hit = client.crosshairTarget;
+        if (world == null || !(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) {
+            return Text.literal("Look at a block first.").formatted(Formatting.RED);
+        }
+        BlockPos pos = bhr.getBlockPos();
+        if (world.getBlockState(pos).getHardness(world, pos) < 0) {
+            return Text.literal("That block can't be mined.").formatted(Formatting.RED);
+        }
+        String key = keyOf(world, pos);
+        Text name = nameOf(world, pos, key);
+        boolean added = !targets.containsKey(key);
+        if (added) targets.put(key, new Target(name.getString(), DEFAULT_PRIORITY));
+        else targets.remove(key);
+        resetCurrent(client);
+        save();
+        return Text.literal(added ? "Added: " : "Removed: ").formatted(added ? Formatting.GREEN : Formatting.RED)
+                .append(name.copy().formatted(Formatting.WHITE))
+                .append(Text.literal("  (" + targets.size() + " target" + (targets.size() == 1 ? "" : "s") + ")")
+                        .formatted(Formatting.GRAY));
+    }
+
+    public static void setEnabled(MinecraftClient client, boolean on) {
+        if (on && targets.isEmpty()) return;
+        enabled = on;
+        resetCurrent(client);
+        pauseTicks = 0;
+        if (!on) KeyBinding.updatePressedStates();   // give the mouse button back
+    }
+
+    public static void setHoldMode(MinecraftClient client, boolean hold) {
+        holdMode = hold;
+        resetCurrent(client);
+        save();
+    }
+
+    public static void clearTargets(MinecraftClient client) {
+        targets.clear();
+        skipped.clear();
+        resetCurrent(client);
+        enabled = false;
+        save();
+    }
+
+    /** Call after the menu changes priorities or settings. */
+    public static void settingsChanged(MinecraftClient client) {
+        path.clear();          // replan with the new priorities
+        extendCooldown = 0;
+        save();
     }
 
     // ------------------------------------------------------------------ tick
@@ -144,7 +221,7 @@ public class AutoMinerClient implements ClientModInitializer {
             return;
         }
 
-        handleKeys(client, world);
+        handleKeys(client);
 
         if (!enabled || targets.isEmpty() || client.currentScreen != null || player.isSpectator()) {
             releaseAttack(client);
@@ -165,7 +242,7 @@ public class AutoMinerClient implements ClientModInitializer {
             blockTicks++;
             if (isGone(state)) {                    // broke it: pause, then the next one
                 finishBlock(client);
-                pauseTicks = PAUSE_TICKS;
+                pauseTicks = pauseSetting;
                 return;
             }
             if (!started && !isTarget(world, currentPos)) {
@@ -184,13 +261,13 @@ public class AutoMinerClient implements ClientModInitializer {
                 } else if (++lostTicks > GRACE_TICKS) {
                     dropBlock(client);              // out of sight for too long
                 }
-                // otherwise: briefly hidden, keep going with the last aim
             }
         }
 
         // ---- follow the path: skip queued blocks that changed, take the next one, plan ahead
         prunePath(world);
         if (extendCooldown > 0) extendCooldown--;
+        if (tickCount % PRIORITY_CHECK_TICKS == 0) checkForHigherPriority(world, eye, player);
         if (currentPos == null) {
             takeFromPath(world, eye, player);
             if (currentPos == null && extendCooldown == 0) {
@@ -204,7 +281,7 @@ public class AutoMinerClient implements ClientModInitializer {
         }
         if (path.size() <= EXTEND_AT && extendCooldown == 0) extendPath(world, eye, player);   // nearing the end
 
-        // ---- aim at the server's particle on the block if there is one (faster mining on some servers)
+        // ---- aim at the server's particle on the block if there is one
         Aim pAim = particleAim(world, eye, player);
         if (pAim != null) {
             currentSide = pAim.side();
@@ -217,11 +294,10 @@ public class AutoMinerClient implements ClientModInitializer {
             HitResult hit = client.crosshairTarget;
             boolean onTarget = hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK
                     && bhr.getBlockPos().equals(currentPos);
-            // only hold the button when the crosshair is really on our block, so nothing else gets mined
-            setAttack(client, onTarget);
+            setAttack(client, onTarget);           // only hold the button when it's really on our block
             if (onTarget) started = true;
         } else {
-            if (pAim != null) aimAt(player, currentAim);   // the server checks where you're looking
+            if (pAim != null) aimAt(player, currentAim);
             if (client.interactionManager.updateBlockBreakingProgress(currentPos, currentSide)) {
                 player.swingHand(Hand.MAIN_HAND);
             }
@@ -229,20 +305,47 @@ public class AutoMinerClient implements ClientModInitializer {
         }
     }
 
+    private static void handleKeys(MinecraftClient client) {
+        while (menuKey.wasPressed()) {
+            if (client.currentScreen == null) client.setScreen(new AutoMinerScreen());
+        }
+        while (selectKey.wasPressed()) say(client, toggleLookedAt(client));
+        while (clearKey.wasPressed()) {
+            clearTargets(client);
+            say(client, Text.literal("Auto Miner: target list cleared").formatted(Formatting.YELLOW));
+        }
+        while (modeKey.wasPressed()) {
+            setHoldMode(client, !holdMode);
+            say(client, Text.literal("Auto Miner mode: ").formatted(Formatting.YELLOW)
+                    .append(Text.literal(holdMode ? "hold click" : "classic").formatted(Formatting.WHITE)));
+        }
+        while (toggleKey.wasPressed()) {
+            if (targets.isEmpty()) {
+                say(client, Text.literal("Add a block first (G or the O menu).").formatted(Formatting.RED));
+                continue;
+            }
+            setEnabled(client, !enabled);
+            say(client, Text.literal("Auto Miner: ").formatted(Formatting.YELLOW)
+                    .append(enabled ? Text.literal("ON").formatted(Formatting.GREEN)
+                            : Text.literal("OFF").formatted(Formatting.RED))
+                    .append(Text.literal(" (" + (holdMode ? "hold click" : "classic") + ")").formatted(Formatting.GRAY)));
+        }
+    }
+
+    // ------------------------------------------------------------------ particles
+
     /** Called for every particle the server sends. Remembers ones sitting on the surface of our block. */
     public static void onServerParticle(ParticleEffect effect, double x, double y, double z) {
         if (!enabled || currentPos == null) return;
-        if (effect instanceof BlockStateParticleEffect || effect instanceof ItemStackParticleEffect) return;   // break debris
+        if (effect instanceof BlockStateParticleEffect || effect instanceof ItemStackParticleEffect) return;
         Vec3d c = Vec3d.ofCenter(currentPos);
-        double dx = Math.abs(x - c.x), dy = Math.abs(y - c.y), dz = Math.abs(z - c.z);
-        double out = Math.max(dx, Math.max(dy, dz));
-        if (out > 0.8 || out < 0.35) return;      // must be on (or just off) one of the block's faces
+        double out = Math.max(Math.abs(x - c.x), Math.max(Math.abs(y - c.y), Math.abs(z - c.z)));
+        if (out > 0.8 || out < 0.35) return;
         particlePoint = new Vec3d(x, y, z);
         particleBlock = currentPos;
         particleTick = tickCount;
     }
 
-    /** Where to aim to look straight at the current particle on our block, or null. */
     private static Aim particleAim(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
         if (particlePoint == null || !currentPos.equals(particleBlock) || tickCount - particleTick > PARTICLE_TICKS) {
             return null;
@@ -250,72 +353,13 @@ public class AutoMinerClient implements ClientModInitializer {
         Vec3d dir = particlePoint.subtract(eye);
         double dist = dir.length();
         if (dist < 0.01) return null;
-        Vec3d end = eye.add(dir.multiply((dist + 0.6) / dist));   // a bit past it, into the block
+        Vec3d end = eye.add(dir.multiply((dist + 0.6) / dist));
         BlockHitResult hit = world.raycast(new RaycastContext(
                 eye, end, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
         if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(currentPos)) {
             return new Aim(hit.getSide(), hit.getPos());
         }
         return null;
-    }
-
-    private static void handleKeys(MinecraftClient client, ClientWorld world) {
-        while (selectKey.wasPressed()) {
-            HitResult hit = client.crosshairTarget;
-            if (hit instanceof BlockHitResult bhr && hit.getType() == HitResult.Type.BLOCK) {
-                BlockPos pos = bhr.getBlockPos();
-                BlockState state = world.getBlockState(pos);
-                if (state.getHardness(world, pos) < 0) {
-                    say(client, Text.literal("That block can't be mined.").formatted(Formatting.RED));
-                    continue;
-                }
-                String key = keyOf(world, pos);
-                boolean added;
-                if (targets.containsKey(key)) {
-                    targets.remove(key);
-                    added = false;
-                } else {
-                    targets.put(key, nameOf(world, pos, key));
-                    added = true;
-                }
-                resetCurrent(client);
-                say(client, Text.literal(added ? "Added: " : "Removed: ")
-                        .formatted(added ? Formatting.GREEN : Formatting.RED)
-                        .append(nameOf(world, pos, key).copy().formatted(Formatting.WHITE))
-                        .append(Text.literal("  (" + targets.size() + " target" + (targets.size() == 1 ? "" : "s") + ")")
-                                .formatted(Formatting.GRAY)));
-            } else {
-                say(client, Text.literal("Look at a block to select it.").formatted(Formatting.RED));
-            }
-        }
-        while (clearKey.wasPressed()) {
-            targets.clear();
-            skipped.clear();
-            resetCurrent(client);
-            enabled = false;
-            say(client, Text.literal("Auto Miner: target list cleared").formatted(Formatting.YELLOW));
-        }
-        while (modeKey.wasPressed()) {
-            holdMode = !holdMode;
-            resetCurrent(client);
-            say(client, Text.literal("Auto Miner mode: ").formatted(Formatting.YELLOW)
-                    .append(Text.literal(holdMode ? "hold click (for drills / server blocks)" : "classic")
-                            .formatted(Formatting.WHITE)));
-        }
-        while (toggleKey.wasPressed()) {
-            if (targets.isEmpty()) {
-                say(client, Text.literal("Add a block first (G).").formatted(Formatting.RED));
-                continue;
-            }
-            enabled = !enabled;
-            resetCurrent(client);
-            pauseTicks = 0;
-            if (!enabled) KeyBinding.updatePressedStates();   // give the mouse button back
-            say(client, Text.literal("Auto Miner: ").formatted(Formatting.YELLOW)
-                    .append(enabled ? Text.literal("ON").formatted(Formatting.GREEN)
-                            : Text.literal("OFF").formatted(Formatting.RED))
-                    .append(Text.literal(" (" + (holdMode ? "hold click" : "classic") + ")").formatted(Formatting.GRAY)));
-        }
     }
 
     // ------------------------------------------------------------------ block bookkeeping
@@ -343,19 +387,16 @@ public class AutoMinerClient implements ClientModInitializer {
         blockTicks = 0;
     }
 
-    /** Air, bedrock or barrier: the block is broken (or regenerating). */
     private static boolean isGone(BlockState state) {
         return state.isAir() || state.isOf(Blocks.BEDROCK) || state.isOf(Blocks.BARRIER);
     }
 
-    // ------------------------------------------------------------------ paths
+    // ------------------------------------------------------------------ paths and priorities
 
-    /** Drop queued blocks that have changed (or are gone) since they were queued. */
     private static void prunePath(ClientWorld world) {
         path.removeIf(e -> !keyOf(world, e.pos()).equals(e.key()));
     }
 
-    /** Make the next queued block the current one (skipping any that are out of reach or sight now). */
     private static void takeFromPath(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
         while (!path.isEmpty()) {
             PathEntry e = path.pollFirst();
@@ -373,53 +414,62 @@ public class AutoMinerClient implements ClientModInitializer {
         }
     }
 
-    /**
-     * Add blocks to the end of the path. Grows the chain through touching target blocks
-     * (diagonals count); when it can't grow, starts the next path at the target closest
-     * to where this one ends.
-     */
+    /** Adds blocks to the end of the path, best first (priority, then touching the last one, then distance). */
     private static void extendPath(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
         skipped.values().removeIf(until -> until < tickCount);
         int before = path.size();
-        while (path.size() < MAX_PATH) {
+        while (path.size() < maxPath) {
             BlockPos tail = !path.isEmpty() ? path.peekLast().pos() : currentPos;
-            PathEntry next = tail != null ? nearestTarget(world, eye, player, tail, 1) : null;   // touching the tail
-            if (next == null) {
-                int r = (int) Math.ceil(player.getBlockInteractionRange()) + 1;
-                Vec3d from = tail != null ? Vec3d.ofCenter(tail) : eye;
-                next = nearestTarget(world, eye, player, from, r);           // start the next path
-            }
+            PathEntry next = bestTarget(world, eye, player, tail);
             if (next == null) break;
             path.addLast(next);
         }
-        if (path.size() == before) extendCooldown = EXTEND_RETRY;          // nothing new: search again shortly
+        if (path.size() == before) extendCooldown = EXTEND_RETRY;
     }
 
-    private static PathEntry nearestTarget(ClientWorld world, Vec3d eye, ClientPlayerEntity player, BlockPos around, int r) {
-        return nearestTarget(world, eye, player, Vec3d.ofCenter(around), r);
+    /** If a block with higher priority than everything planned is in reach, replan to go there next. */
+    private static void checkForHigherPriority(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
+        int planned = 0;
+        for (PathEntry e : path) planned = Math.max(planned, priorityOfKey(e.key()));
+        if (path.isEmpty()) return;
+        PathEntry best = bestTarget(world, eye, player, null);
+        if (best != null && priorityOfKey(best.key()) > planned) {
+            path.clear();
+            path.addLast(best);
+            extendCooldown = 0;
+        }
     }
 
-    /** The target block within r blocks of `from` that is closest to it, not queued, in reach and in sight. */
-    private static PathEntry nearestTarget(ClientWorld world, Vec3d eye, ClientPlayerEntity player, Vec3d from, int r) {
-        BlockPos center = BlockPos.ofFloored(from);
+    /**
+     * The best block to mine next: highest priority first; among equal priority, one touching
+     * `tail` (so it follows veins), then the closest to `tail` (or to you).
+     */
+    private static PathEntry bestTarget(ClientWorld world, Vec3d eye, ClientPlayerEntity player, BlockPos tail) {
+        int r = (int) Math.ceil(player.getBlockInteractionRange()) + 1;
+        BlockPos center = BlockPos.ofFloored(eye);
+        Vec3d from = tail != null ? Vec3d.ofCenter(tail) : eye;
         BlockPos.Mutable pos = new BlockPos.Mutable();
         PathEntry best = null;
-        double bestDist = Double.MAX_VALUE;
+        double bestScore = Double.MAX_VALUE;
         for (int x = -r; x <= r; x++) {
             for (int y = -r; y <= r; y++) {
                 for (int z = -r; z <= r; z++) {
                     pos.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                    if (pos.equals(currentPos) || queued(pos) || skipped.containsKey(pos)) continue;
+                    if (!isTarget(world, pos)) continue;
+                    String key = keyOf(world, pos);
                     Vec3d c = Vec3d.ofCenter(pos);
-                    // closest to `from`, ties broken by closest to your eyes
-                    double d = c.squaredDistanceTo(from) * 100 + c.squaredDistanceTo(eye);
-                    if (d >= bestDist) continue;
-                    if (pos.equals(currentPos) || queued(pos)) continue;
-                    if (!isTarget(world, pos) || skipped.containsKey(pos)) continue;
+                    boolean touching = tail != null && Math.abs(pos.getX() - tail.getX()) <= 1
+                            && Math.abs(pos.getY() - tail.getY()) <= 1 && Math.abs(pos.getZ() - tail.getZ()) <= 1;
+                    double score = (MAX_PRIORITY - priorityOfKey(key)) * 1_000_000.0
+                            + (touching ? 0 : 10_000.0)
+                            + c.squaredDistanceTo(from) * 10 + c.squaredDistanceTo(eye);
+                    if (score >= bestScore) continue;
                     BlockPos candidate = pos.toImmutable();
                     if (!player.canInteractWithBlockAt(candidate, 0.0)) continue;
                     if (visibleAim(world, eye, candidate, player) == null) continue;
-                    bestDist = d;
-                    best = new PathEntry(candidate, keyOf(world, candidate));
+                    bestScore = score;
+                    best = new PathEntry(candidate, key);
                 }
             }
         }
@@ -436,9 +486,15 @@ public class AutoMinerClient implements ClientModInitializer {
     private static boolean isTarget(ClientWorld world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
         if (state.isAir()) return false;
-        String plain = Registries.BLOCK.getId(state.getBlock()).toString();
-        if (!(state.getBlock() instanceof AbstractSkullBlock)) return targets.containsKey(plain);
+        if (!(state.getBlock() instanceof AbstractSkullBlock)) {
+            return targets.containsKey(Registries.BLOCK.getId(state.getBlock()).toString());
+        }
         return targets.containsKey(keyOf(world, pos));
+    }
+
+    private static int priorityOfKey(String key) {
+        Target t = targets.get(key);
+        return t == null ? 0 : t.priority;
     }
 
     /** "minecraft:stone", or for heads "minecraft:player_head#<texture hash>". */
@@ -452,7 +508,6 @@ public class AutoMinerClient implements ClientModInitializer {
         return id;
     }
 
-    /** The skin texture of a head block (or its whole profile if no texture is found). */
     private static String headTexture(ClientWorld world, BlockPos pos) {
         BlockEntity be = world.getBlockEntity(pos);
         if (be == null) return null;
@@ -477,11 +532,6 @@ public class AutoMinerClient implements ClientModInitializer {
 
     // ------------------------------------------------------------------ seeing and aiming
 
-    /**
-     * A point on the block you can hit with a clear line of sight, and which face it's on.
-     * Tries the middle and a 3x3 grid on every face of the block's real shape, so odd shapes
-     * (heads, slabs, panes) and blocks round corners are found too.
-     */
     private static Aim visibleAim(ClientWorld world, Vec3d eye, BlockPos pos, ClientPlayerEntity player) {
         BlockState state = world.getBlockState(pos);
         VoxelShape shape = state.getOutlineShape(world, pos);
@@ -530,9 +580,6 @@ public class AutoMinerClient implements ClientModInitializer {
         return null;
     }
 
-    /** Fraction of the remaining angle turned each tick: big turns go fast, small ones slow down. */
-    private static final float TURN_FRACTION = 0.20f;
-    /** Fastest turn per tick, and the smallest step before it just lands on the target (degrees). */
     private static final float MAX_TURN = 25f, MIN_TURN = 0.4f;
 
     /** Turns toward the point smoothly: fast when it's far away, slowing down as it gets close. */
@@ -543,7 +590,6 @@ public class AutoMinerClient implements ClientModInitializer {
         double h = Math.sqrt(dx * dx + dz * dz);
         float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float targetPitch = MathHelper.clamp((float) -Math.toDegrees(Math.atan2(dy, h)), -90f, 90f);
-
         float yaw = player.getYaw() + ease(MathHelper.wrapDegrees(targetYaw - player.getYaw()));
         float pitch = MathHelper.clamp(player.getPitch() + ease(targetPitch - player.getPitch()), -90f, 90f);
         player.setYaw(yaw);
@@ -551,11 +597,10 @@ public class AutoMinerClient implements ClientModInitializer {
         player.setHeadYaw(yaw);
     }
 
-    /** How far to turn this tick for an angle still to go. */
     private static float ease(float diff) {
         float abs = Math.abs(diff);
-        if (abs <= MIN_TURN) return diff;                       // close enough: land on it
-        float step = MathHelper.clamp(abs * TURN_FRACTION, MIN_TURN, MAX_TURN);
+        if (abs <= MIN_TURN) return diff;
+        float step = MathHelper.clamp(abs * turnFraction, MIN_TURN, MAX_TURN);
         return Math.copySign(step, diff);
     }
 
@@ -573,7 +618,57 @@ public class AutoMinerClient implements ClientModInitializer {
         }
     }
 
-    private static void say(MinecraftClient client, Text msg) {
+    static void say(MinecraftClient client, Text msg) {
         client.inGameHud.setOverlayMessage(msg, false);
+    }
+
+    // ------------------------------------------------------------------ saving
+
+    /** Targets sorted highest priority first (for the menu). */
+    public static List<Map.Entry<String, Target>> sortedTargets() {
+        List<Map.Entry<String, Target>> list = new ArrayList<>(targets.entrySet());
+        list.sort((a, b) -> Integer.compare(b.getValue().priority, a.getValue().priority));
+        return list;
+    }
+
+    public static void save() {
+        if (configFile == null) return;
+        StringBuilder sb = new StringBuilder();
+        sb.append("mode ").append(holdMode ? "hold" : "classic").append('\n');
+        sb.append("turn ").append(turnFraction).append('\n');
+        sb.append("pause ").append(pauseSetting).append('\n');
+        sb.append("path ").append(maxPath).append('\n');
+        for (Map.Entry<String, Target> e : targets.entrySet()) {
+            sb.append("target ").append(e.getValue().priority).append(' ').append(e.getKey()).append(' ')
+                    .append(URLEncoder.encode(e.getValue().name, StandardCharsets.UTF_8)).append('\n');
+        }
+        try {
+            Files.createDirectories(configFile.getParent());
+            Files.writeString(configFile, sb.toString(), StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void load() {
+        if (!Files.exists(configFile)) return;
+        try {
+            for (String line : Files.readAllLines(configFile, StandardCharsets.UTF_8)) {
+                String[] p = line.trim().split(" ");
+                switch (p[0]) {
+                    case "mode" -> holdMode = p.length < 2 || !p[1].equals("classic");
+                    case "turn" -> turnFraction = MathHelper.clamp(Float.parseFloat(p[1]), 0.05f, 0.6f);
+                    case "pause" -> pauseSetting = MathHelper.clamp(Integer.parseInt(p[1]), 0, 40);
+                    case "path" -> maxPath = MathHelper.clamp(Integer.parseInt(p[1]), 1, 40);
+                    case "target" -> {
+                        if (p.length >= 4) {
+                            int prio = MathHelper.clamp(Integer.parseInt(p[1]), MIN_PRIORITY, MAX_PRIORITY);
+                            targets.put(p[2], new Target(URLDecoder.decode(p[3], StandardCharsets.UTF_8), prio));
+                        }
+                    }
+                    default -> { }
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 }
