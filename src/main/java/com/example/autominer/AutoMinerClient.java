@@ -14,6 +14,9 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ItemStackParticleEffect;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -49,6 +52,8 @@ import java.util.regex.Pattern;
  *  - "hold click" mode aims at the block and holds left click, so the server
  *    and your drill decide how fast it breaks
  *  - short pause after each block
+ *  - aims at particles the server puts on the block (e.g. "precision mining"
+ *    targets), which some servers reward with faster mining
  *
  *   G = add / remove the block you're looking at
  *   J = clear the list
@@ -88,6 +93,13 @@ public class AutoMinerClient implements ClientModInitializer {
     private static int lostTicks = 0, blockTicks = 0, pauseTicks = 0;
     private static long tickCount = 0;
     private static boolean holdingAttack = false;
+
+    /** Latest server particle on the block being mined, and when it appeared. */
+    private static Vec3d particlePoint = null;
+    private static BlockPos particleBlock = null;
+    private static long particleTick = 0;
+    /** How long to keep aiming at a particle after it appeared (2 s). */
+    private static final int PARTICLE_TICKS = 40;
 
     private record Aim(Direction side, Vec3d point) {}
 
@@ -170,6 +182,13 @@ public class AutoMinerClient implements ClientModInitializer {
             }
         }
 
+        // ---- aim at the server's particle on the block if there is one (faster mining on some servers)
+        Aim pAim = particleAim(world, eye, player);
+        if (pAim != null) {
+            currentSide = pAim.side();
+            currentAim = pAim.point();
+        }
+
         // ---- hit it
         if (holdMode) {
             aimAt(player, currentAim);
@@ -180,11 +199,42 @@ public class AutoMinerClient implements ClientModInitializer {
             setAttack(client, onTarget);
             if (onTarget) started = true;
         } else {
+            if (pAim != null) aimAt(player, currentAim);   // the server checks where you're looking
             if (client.interactionManager.updateBlockBreakingProgress(currentPos, currentSide)) {
                 player.swingHand(Hand.MAIN_HAND);
             }
             started = true;
         }
+    }
+
+    /** Called for every particle the server sends. Remembers ones sitting on the surface of our block. */
+    public static void onServerParticle(ParticleEffect effect, double x, double y, double z) {
+        if (!enabled || currentPos == null) return;
+        if (effect instanceof BlockStateParticleEffect || effect instanceof ItemStackParticleEffect) return;   // break debris
+        Vec3d c = Vec3d.ofCenter(currentPos);
+        double dx = Math.abs(x - c.x), dy = Math.abs(y - c.y), dz = Math.abs(z - c.z);
+        double out = Math.max(dx, Math.max(dy, dz));
+        if (out > 0.8 || out < 0.35) return;      // must be on (or just off) one of the block's faces
+        particlePoint = new Vec3d(x, y, z);
+        particleBlock = currentPos;
+        particleTick = tickCount;
+    }
+
+    /** Where to aim to look straight at the current particle on our block, or null. */
+    private static Aim particleAim(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
+        if (particlePoint == null || !currentPos.equals(particleBlock) || tickCount - particleTick > PARTICLE_TICKS) {
+            return null;
+        }
+        Vec3d dir = particlePoint.subtract(eye);
+        double dist = dir.length();
+        if (dist < 0.01) return null;
+        Vec3d end = eye.add(dir.multiply((dist + 0.6) / dist));   // a bit past it, into the block
+        BlockHitResult hit = world.raycast(new RaycastContext(
+                eye, end, RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
+        if (hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(currentPos)) {
+            return new Aim(hit.getSide(), hit.getPos());
+        }
+        return null;
     }
 
     private static void handleKeys(MinecraftClient client, ClientWorld world) {
@@ -249,12 +299,14 @@ public class AutoMinerClient implements ClientModInitializer {
     // ------------------------------------------------------------------ block bookkeeping
 
     private static void finishBlock(MinecraftClient client) {
+        particlePoint = null;
         releaseAttack(client);
         currentPos = null;
         started = false;
     }
 
     private static void dropBlock(MinecraftClient client) {
+        particlePoint = null;
         if (!holdMode && started && client.interactionManager != null) client.interactionManager.cancelBlockBreaking();
         releaseAttack(client);
         currentPos = null;
