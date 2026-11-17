@@ -40,6 +40,9 @@ Rebind them in **Options → Controls → Key Binds → Auto Miner**.
   it's dropped. A block that hasn't broken after 30 seconds (a ghost block, say) is skipped for 10 seconds.
 * **Finds odd shapes:** it looks for a clear line of sight to 55 points on the block's real shape, so heads, slabs and
   blocks round corners are found.
+* **Stays in reach:** a block only counts if its centre is within your reach (minus a small safety margin), and every
+  queued block is re-checked each tick, so the path never includes a block you can't reach. Blocks that drop out of
+  reach (because you moved) are taken out of the path straight away.
 * **Paths:** it plans a chain of up to 12 connected target blocks (touching each other, diagonals count) and mines
   them in order, so it works along a vein instead of jumping around. If a queued block changes before it gets there
   (someone else mined it, it changed stage, it regenerated), that block is skipped. When only 2 blocks are left in the
@@ -57,5 +60,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-2.4.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-2.4.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

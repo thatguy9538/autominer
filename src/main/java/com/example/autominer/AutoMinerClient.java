@@ -247,7 +247,7 @@ public class AutoMinerClient implements ClientModInitializer {
             }
             if (!started && !isTarget(world, currentPos)) {
                 dropBlock(client);                  // changed before we even hit it
-            } else if (!player.canInteractWithBlockAt(currentPos, 0.0)) {
+            } else if (!inReach(player, currentPos)) {
                 dropBlock(client);                  // walked out of reach
             } else if (blockTicks > MAX_BLOCK_TICKS) {
                 skipped.put(currentPos, tickCount + SKIP_TICKS);   // stuck (ghost block?): skip it for a while
@@ -265,7 +265,7 @@ public class AutoMinerClient implements ClientModInitializer {
         }
 
         // ---- follow the path: skip queued blocks that changed, take the next one, plan ahead
-        prunePath(world);
+        prunePath(world, player);
         if (extendCooldown > 0) extendCooldown--;
         if (tickCount % PRIORITY_CHECK_TICKS == 0) checkForHigherPriority(world, eye, player);
         if (currentPos == null) {
@@ -393,15 +393,29 @@ public class AutoMinerClient implements ClientModInitializer {
 
     // ------------------------------------------------------------------ paths and priorities
 
-    private static void prunePath(ClientWorld world) {
-        path.removeIf(e -> !keyOf(world, e.pos()).equals(e.key()));
+    /** Drop queued blocks that changed, or that are out of reach now (e.g. you moved). */
+    private static void prunePath(ClientWorld world, ClientPlayerEntity player) {
+        path.removeIf(e -> !inReach(player, e.pos()) || !keyOf(world, e.pos()).equals(e.key()));
+    }
+
+    /** Safety margin (blocks) kept inside your reach. */
+    private static final double REACH_MARGIN = 0.3;
+
+    /**
+     * Strict reach check: the block's centre must be within your reach minus a small margin
+     * (servers usually measure to the centre), and the game must agree you can reach it.
+     */
+    private static boolean inReach(ClientPlayerEntity player, BlockPos pos) {
+        double range = player.getBlockInteractionRange() - REACH_MARGIN;
+        return player.getEyePos().squaredDistanceTo(Vec3d.ofCenter(pos)) <= range * range
+                && player.canInteractWithBlockAt(pos, 0.0);
     }
 
     private static void takeFromPath(ClientWorld world, Vec3d eye, ClientPlayerEntity player) {
         while (!path.isEmpty()) {
             PathEntry e = path.pollFirst();
             if (!keyOf(world, e.pos()).equals(e.key()) || !isTarget(world, e.pos())) continue;   // changed: skip
-            if (skipped.containsKey(e.pos()) || !player.canInteractWithBlockAt(e.pos(), 0.0)) continue;
+            if (skipped.containsKey(e.pos()) || !inReach(player, e.pos())) continue;
             Aim aim = visibleAim(world, eye, e.pos(), player);
             if (aim == null) continue;
             currentPos = e.pos();
@@ -466,7 +480,7 @@ public class AutoMinerClient implements ClientModInitializer {
                             + c.squaredDistanceTo(from) * 10 + c.squaredDistanceTo(eye);
                     if (score >= bestScore) continue;
                     BlockPos candidate = pos.toImmutable();
-                    if (!player.canInteractWithBlockAt(candidate, 0.0)) continue;
+                    if (!inReach(player, candidate)) continue;
                     if (visibleAim(world, eye, candidate, player) == null) continue;
                     bestScore = score;
                     best = new PathEntry(candidate, key);
