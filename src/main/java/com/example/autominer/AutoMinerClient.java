@@ -459,16 +459,33 @@ public class AutoMinerClient implements ClientModInitializer {
         return null;
     }
 
+    /** Fraction of the remaining angle turned each tick: big turns go fast, small ones slow down. */
+    private static final float TURN_FRACTION = 0.35f;
+    /** Fastest turn per tick, and the smallest step before it just lands on the target (degrees). */
+    private static final float MAX_TURN = 45f, MIN_TURN = 0.6f;
+
+    /** Turns toward the point smoothly: fast when it's far away, slowing down as it gets close. */
     private static void aimAt(ClientPlayerEntity player, Vec3d point) {
         if (point == null) return;
         Vec3d eye = player.getEyePos();
         double dx = point.x - eye.x, dy = point.y - eye.y, dz = point.z - eye.z;
         double h = Math.sqrt(dx * dx + dz * dz);
-        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
-        float pitch = (float) -Math.toDegrees(Math.atan2(dy, h));
+        float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+        float targetPitch = MathHelper.clamp((float) -Math.toDegrees(Math.atan2(dy, h)), -90f, 90f);
+
+        float yaw = player.getYaw() + ease(MathHelper.wrapDegrees(targetYaw - player.getYaw()));
+        float pitch = MathHelper.clamp(player.getPitch() + ease(targetPitch - player.getPitch()), -90f, 90f);
         player.setYaw(yaw);
-        player.setPitch(MathHelper.clamp(pitch, -90f, 90f));
+        player.setPitch(pitch);
         player.setHeadYaw(yaw);
+    }
+
+    /** How far to turn this tick for an angle still to go. */
+    private static float ease(float diff) {
+        float abs = Math.abs(diff);
+        if (abs <= MIN_TURN) return diff;                       // close enough: land on it
+        float step = MathHelper.clamp(abs * TURN_FRACTION, MIN_TURN, MAX_TURN);
+        return Math.copySign(step, diff);
     }
 
     // ------------------------------------------------------------------ the attack button
