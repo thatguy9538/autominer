@@ -460,9 +460,9 @@ public class AutoMinerClient implements ClientModInitializer {
     }
 
     /** Fraction of the remaining angle turned each tick: big turns go fast, small ones slow down. */
-    private static final float TURN_FRACTION = 0.35f;
+    private static final float TURN_FRACTION = 0.20f;
     /** Fastest turn per tick, and the smallest step before it just lands on the target (degrees). */
-    private static final float MAX_TURN = 45f, MIN_TURN = 0.6f;
+    private static final float MAX_TURN = 25f, MIN_TURN = 0.4f;
 
     /** Turns toward the point smoothly: fast when it's far away, slowing down as it gets close. */
     private static void aimAt(ClientPlayerEntity player, Vec3d point) {
