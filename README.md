@@ -1,45 +1,36 @@
-# Auto Miner — Fabric mod for Minecraft 1.21.10
+# Auto Miner 2.0: Fabric mod for Minecraft 1.21.10
 
-Pick one or more block types, and the mod automatically mines every block of
-those types that is within your reach and that you can see.
+Pick one or more blocks, and the mod mines every matching block within your reach that you can see.
+Built to cope with custom server blocks and drills.
 
 ## Controls
 | Key | Action |
 |-----|--------|
 | **G** | Add the block you're looking at to the target list (press again to remove it) |
 | **J** | Clear the target list |
-| **H** | Turn auto-mining on / off |
+| **H** | Turn mining on / off |
+| **L** | Switch mode: **hold click** (default) / **classic** |
 
 Rebind them in **Options → Controls → Key Binds → Auto Miner**.
 
-* It mines the closest matching block first, then moves on to the next one.
-* It only mines blocks you have a clear line of sight to, so it won't dig ores out from behind stone.
-* It pauses while a menu or your inventory is open.
-* It uses whatever you're holding, so hold the right tool.
+## How it handles custom blocks and drills
+* **Head blocks are told apart by their skin.** Adding a player-head block only targets heads with that same texture.
+* **Ores with stages:** add each stage with G (e.g. gray wool, prismarine, light blue wool). Once it starts on a block it
+  keeps hitting it until it's actually gone (air or bedrock), even if it changes into another block on the way.
+* **Hold click mode (default):** turns you to face the block and holds left click, like you'd do yourself, so the server
+  and your drill decide how fast it breaks. It only holds the button while your crosshair is on the target, so it never
+  mines anything else. **Classic** mode uses Minecraft's normal breaking and works better for plain vanilla blocks.
+* **Doesn't give up on flickers:** a block can be out of sight for half a second (particles, armor stands, moving) before
+  it's dropped. A block that hasn't broken after 30 seconds (a ghost block, say) is skipped for 10 seconds.
+* **Finds odd shapes:** it looks for a clear line of sight to 55 points on the block's real shape, so heads, slabs and
+  blocks round corners are found.
+* **Short pause** (0.25 s) after each block, so the server keeps up.
 
-## Build it
-You need **Java 21** (for example [Adoptium Temurin 21](https://adoptium.net)).
+It pauses while a menu is open. Hold click mode needs the Minecraft window focused (the game lets go of the mouse when
+you switch away).
 
-In this folder, run:
+> Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
-```
-# Windows
-gradlew.bat build
-
-# macOS / Linux
-./gradlew build
-```
-
-The first build downloads Minecraft and Fabric, so it can take a few minutes.
-The mod jar ends up at **`build/libs/autominer-1.1.0.jar`**. Ignore the `-sources` jar.
-
-## Install it
-1. Install the **Fabric Loader** for 1.21.10: https://fabricmc.net/use/installer/
-2. Put **Fabric API** for 1.21.10 in your `.minecraft/mods` folder: https://modrinth.com/mod/fabric-api
-3. Put `autominer-1.1.0.jar` in the same `mods` folder.
-4. Launch the game with the Fabric 1.21.10 profile.
-
-To test without installing, run `gradlew runClient`.
-
-> This is a client-side automation mod. It's fine in single-player, but many
-> multiplayer servers ban auto-mining mods, so check the rules before using it there.
+## Install
+Put `autominer-2.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Remove the old autominer jar.
