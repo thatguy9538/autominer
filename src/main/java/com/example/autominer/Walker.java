@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 /** Walks the player along a path found by {@link PathSearch}, re-planning when stuck. */
-public class Walker {
+public class Walker implements Mover {
 
     public enum Result { WALKING, ARRIVED, FAILED }
 
@@ -43,6 +43,7 @@ public class Walker {
         return new Walker(p -> p.getSquaredDistance(target) <= r2, target);
     }
 
+    @Override
     public Result tick(MinecraftClient client) {
         ClientPlayerEntity player = client.player;
         ClientWorld world = client.world;
@@ -116,6 +117,7 @@ public class Walker {
         return Result.WALKING;
     }
 
+    @Override
     public void stop(MinecraftClient client) {
         if (holdingKeys) {
             GameOptions o = client.options;

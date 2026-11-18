@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -83,7 +84,9 @@ public final class CommissionBot {
     public static String status = "Off";
     private static State state = State.OFF;
     private static Task task = null;
-    private static Walker walker = null;
+    private static Mover walker = null;
+    /** Travel with Etherwarp (AOTV) when possible; otherwise walk everywhere. */
+    public static boolean useEtherwarp = true;
     private static State afterTravel = State.READ;
     private static Runnable onArrive = null;
     private static int timer = 0, idleTicks = 0, attackCooldown = 0, claimTries = 0, travelFails = 0;
@@ -260,7 +263,7 @@ public final class CommissionBot {
 
     private static void travelTo(MinecraftClient client, BlockPos target, double radius, State next, String why) {
         stopMiner(client);
-        walker = Walker.to(target, radius);
+        walker = useEtherwarp ? EtherTravel.to(target, radius) : Walker.to(target, radius);
         afterTravel = next;
         onArrive = null;
         state = State.TRAVEL;
@@ -331,7 +334,8 @@ public final class CommissionBot {
             ClientWorld world = client.world;
             ClientPlayerEntity player = client.player;
             // stop somewhere close enough AND with a clear view of the ore, so Auto Miner can mine it
-            walker = new Walker(p -> eyeDistance(p, ore) <= 3.6 && canSeeFrom(world, player, p, ore), ore);
+            Predicate<BlockPos> spot = p -> eyeDistance(p, ore) <= 3.6 && canSeeFrom(world, player, p, ore);
+            walker = useEtherwarp ? new EtherTravel(spot, ore) : new Walker(spot, ore);
             afterTravel = State.MINE;
             onArrive = () -> beginWork(client, State.MINE);
             state = State.TRAVEL;
@@ -552,7 +556,7 @@ public final class CommissionBot {
         BlockPos npc = locations.get("Claim NPC");
         if (npc != null) {
             if (player.getBlockPos().getSquaredDistance(npc) > 4 * 4) {
-                walker = Walker.to(npc, 2.5);
+                walker = useEtherwarp ? EtherTravel.to(npc, 2.5) : Walker.to(npc, 2.5);
                 onArrive = () -> {
                     state = State.CLAIM_NPC;
                     timer = 10;
@@ -784,8 +788,9 @@ public final class CommissionBot {
         save();
     }
 
-    private static void save() {
+    public static void save() {
         StringBuilder sb = new StringBuilder();
+        sb.append("option etherwarp ").append(useEtherwarp ? 1 : 0).append('\n');
         for (Map.Entry<String, BlockPos> e : locations.entrySet()) {
             BlockPos p = e.getValue();
             sb.append(p.getX()).append(' ').append(p.getY()).append(' ').append(p.getZ()).append(' ')
@@ -803,7 +808,9 @@ public final class CommissionBot {
         try {
             for (String line : Files.readAllLines(configFile, StandardCharsets.UTF_8)) {
                 String[] p = line.trim().split(" ", 4);
-                if (p.length == 4) {
+                if (p.length == 3 && p[0].equals("option") && p[1].equals("etherwarp")) {
+                    useEtherwarp = !p[2].equals("0");
+                } else if (p.length == 4) {
                     locations.put(p[3], new BlockPos(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
                 }
             }

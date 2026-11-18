@@ -1,4 +1,4 @@
-# Auto Miner 3.0: Fabric mod for Minecraft 1.21.10
+# Auto Miner 3.1: Fabric mod for Minecraft 1.21.10
 
 Pick one or more blocks, and the mod mines every matching block within your reach that you can see.
 Built to cope with custom server blocks and drills.
@@ -26,7 +26,11 @@ Rebind them in **Options → Controls → Key Binds → Auto Miner**.
 ## Commissions (Dwarven Mines)
 Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissions by itself:
 1. **Reads your commissions** from the tab list (lines like `Royal Mines Mithril: 45%` / `Goblin Slayer: DONE`; `100%` also counts as done).
-2. **Walks there**: it plans a walking route block by block (around walls, up 1-block steps, down drops of up to
+2. **Etherwarps there** (if an **Aspect of the Void** is in your hotbar): it looks for a block you can see within
+   ~55 blocks, with 2 air blocks on top, that gets you closest to where you're going, aims at it, sneaks and right-clicks,
+   and repeats. The last ~8 blocks (and any jump it can't make: no AOTV, nothing to land on, 3 failed jumps e.g. out of
+   mana) are walked. Switch to walking only with **Travel: Etherwarp / Walk** in the Commissions menu.
+   **Walking**: it plans a walking route block by block (around walls, up 1-block steps, down drops of up to
    3 blocks, never onto lava / fire / magma), sprints along it, and re-plans if it gets stuck.
 3. **Does it:**
    * **Mithril / Titanium** commissions (any area, or area ones like *Royal Mines Mithril*): mines with Auto Miner
@@ -88,5 +92,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-3.0.3.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-3.1.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

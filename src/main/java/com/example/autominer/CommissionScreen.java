@@ -34,7 +34,14 @@ public class CommissionScreen extends Screen {
                     CommissionBot.setRunning(client, !CommissionBot.running);
                     if (CommissionBot.running) close();       // start right away
                     else clearAndInit();
-                }).dimensions(left, y, w, 20).build());
+                }).dimensions(left, y, w - 124, 20).build());
+        addDrawableChild(ButtonWidget.builder(
+                Text.literal("Travel: " + (CommissionBot.useEtherwarp ? "Etherwarp" : "Walk")),
+                b -> {
+                    CommissionBot.useEtherwarp = !CommissionBot.useEtherwarp;
+                    CommissionBot.save();
+                    clearAndInit();
+                }).dimensions(left + w - 120, y, 120, 20).build());
 
         areasTop = y + 26 + 12 + 6 * 10 + 14;
         int rows = CommissionBot.AREAS.size();
