@@ -37,16 +37,3 @@ jobs:
           echo "JARSHA $(sha256sum $J | cut -d' ' -f1)"
           base64 -w0 "$J" | fold -w 2000 | sed 's/^/JARB64 /'
 
-      - name: API dump
-        if: always()
-        run: |
-          set +e
-          MC=$(find ~/.gradle .gradle -name "*.jar" 2>/dev/null | grep -i "minecraft" | grep -i "yarn\|named\|mapped" | grep -v sources | head -5)
-          echo "MCJARS $MC"
-          FR=$(find ~/.gradle -name "fabric-rendering-v1*.jar" | grep -v sources | head -1)
-          echo "FR $FR"
-          unzip -l $FR | grep -i "\.class" | awk '{print $4}' | grep -i "world\|hud" | sed 's/^/FRCLS /'
-          CP=$(echo $MC | tr ' ' ':'):$FR
-          for c in net.fabricmc.fabric.api.client.rendering.v1.world.WorldTerrainRenderContext net.fabricmc.fabric.api.client.rendering.v1.world.AbstractWorldRenderContext net.minecraft.client.render.Camera net.minecraft.client.gui.DrawContext net.minecraft.client.render.RenderTickCounter net.minecraft.client.render.GameRenderer net.minecraft.client.option.GameOptions net.minecraft.client.network.ClientPlayerEntity net.minecraft.client.render.state.WorldRenderState net.minecraft.client.render.state.CameraRenderState net.minecraft.client.util.Window; do
-            javap -cp "$CP" "$c" 2>&1 | grep -iE "class |interface |camera|fov|pos|rotation|yaw|pitch|fill|drawText|drawCentered|getScaled|gameRenderer|worldState|tickCounter|getTickProgress|getDynamicDelta|projection|getFovMultiplier|Error" | sed "s|^|API |"
-          done
