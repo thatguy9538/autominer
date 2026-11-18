@@ -36,3 +36,17 @@ jobs:
           echo "JARNAME $(basename $J)"
           echo "JARSHA $(sha256sum $J | cut -d' ' -f1)"
           base64 -w0 "$J" | fold -w 2000 | sed 's/^/JARB64 /'
+
+      - name: API dump
+        if: always()
+        run: |
+          set +e
+          MC=$(find ~/.gradle .gradle -name "*.jar" 2>/dev/null | grep -i "minecraft" | grep -i "yarn\|named\|mapped" | grep -v sources | head -5)
+          echo "MCJARS $MC"
+          FR=$(find ~/.gradle -name "fabric-rendering-v1*.jar" | grep -v sources | head -1)
+          echo "FR $FR"
+          unzip -l $FR | grep -i "\.class" | awk '{print $4}' | grep -i "world\|hud" | sed 's/^/FRCLS /'
+          CP=$(echo $MC | tr ' ' ':'):$FR
+          for c in net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents\$Last net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents\$AfterEntities net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents\$EndMain net.minecraft.client.render.RenderLayer net.minecraft.client.render.VertexRendering net.minecraft.client.gl.RenderPipelines com.mojang.blaze3d.pipeline.RenderPipeline\$Builder net.minecraft.client.render.RenderLayer\$MultiPhaseParameters\$Builder net.minecraft.client.render.Camera net.minecraft.client.render.state.WorldRenderState net.minecraft.client.render.state.CameraRenderState; do
+            javap -cp "$CP" "$c" 2>&1 | sed "s|^|API |"
+          done

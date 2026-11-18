@@ -1,20 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "autominer",
+  "id": "powderassist",
   "version": "${version}",
-  "name": "Auto Miner",
-  "description": "Pick a block type and automatically mine every block of that type within your reach. G = select block, H = toggle.",
+  "name": "Powder Assist",
+  "description": "Crystal Hollows powder grinding helper.",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "mixins": ["autominer.mixins.json"],
-  "entrypoints": {
-    "client": ["com.example.autominer.AutoMinerClient"]
-  },
-  "depends": {
-    "fabricloader": ">=0.17.0",
-    "minecraft": "~1.21.10",
-    "java": ">=21",
-    "fabric-api": "*"
-  }
+  "entrypoints": { "client": ["com.example.powderassist.PowderAssistClient"] },
+  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }
