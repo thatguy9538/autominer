@@ -55,8 +55,38 @@ public final class CommissionBot {
     /** Places you can set in the menu. */
     public static final List<String> AREAS = List.of(
             "Upper Mines", "Royal Mines", "Lava Springs", "Cliffside Veins", "Rampart's Quarry",
-            "Goblin Burrows", "Great Ice Wall", "Claim NPC");
+            "Goblin Burrows", "Great Ice Wall", "Claim NPC", "Refuel NPC");
+    /** Spots you set yourself (these win over the built-in ones). */
     public static final Map<String, BlockPos> locations = new LinkedHashMap<>();
+    /** Built-in Hypixel spots, used when you haven't set your own. */
+    public static final Map<String, BlockPos> DEFAULTS = new LinkedHashMap<>();
+    /** Commission Emissaries (and the King): claim at whichever is closest. */
+    private static final Map<String, BlockPos> EMISSARIES = new LinkedHashMap<>();
+    static {
+        DEFAULTS.put("Upper Mines", new BlockPos(-153, 171, -43));
+        DEFAULTS.put("Royal Mines", new BlockPos(113, 150, 50));
+        DEFAULTS.put("Lava Springs", new BlockPos(64, 201, -26));
+        DEFAULTS.put("Cliffside Veins", new BlockPos(91, 143, 48));
+        DEFAULTS.put("Rampart's Quarry", new BlockPos(-35, 156, 20));
+        DEFAULTS.put("Goblin Burrows", new BlockPos(-137, 143, 138));
+        DEFAULTS.put("Great Ice Wall", new BlockPos(0, 128, 160));
+        DEFAULTS.put("Refuel NPC", new BlockPos(-9, 145, -18));
+        EMISSARIES.put("King", new BlockPos(129, 196, 196));
+        EMISSARIES.put("Fraiser", new BlockPos(-133, 174, -51));
+        EMISSARIES.put("Carlton", new BlockPos(-73, 153, -11));
+        EMISSARIES.put("Ceanna", new BlockPos(42, 134, 22));
+        EMISSARIES.put("Wilson", new BlockPos(171, 150, 31));
+        EMISSARIES.put("Lilith", new BlockPos(58, 198, -9));
+    }
+    /** Use the built-in spots for areas you haven't set. */
+    public static boolean useDefaults = true;
+
+    /** Where an area is: your spot, else the built-in one, else null. */
+    public static BlockPos locationOf(String area) {
+        BlockPos p = locations.get(area);
+        if (p == null && useDefaults) p = DEFAULTS.get(area);
+        return p;
+    }
 
     private static final Set<String> MITHRIL = Set.of(
             "minecraft:gray_wool", "minecraft:cyan_terracotta", "minecraft:prismarine",
@@ -119,6 +149,7 @@ public final class CommissionBot {
                 "key.autominer.commissions", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K,
                 KeyBinding.Category.create(net.minecraft.util.Identifier.of(AutoMinerClient.MOD_ID, "commissions"))));
         ClientTickEvents.END_CLIENT_TICK.register(CommissionBot::onTick);
+        Upkeep.init();
     }
 
     public static void setRunning(MinecraftClient client, boolean on) {
@@ -129,6 +160,7 @@ public final class CommissionBot {
             claimTries = 0;
             travelFails = 0;
             warnedNoClaim = false;
+            Upkeep.commissionComplete = false;
             show(client, "Commissions: started");
         } else {
             stopWork(client);
@@ -142,6 +174,7 @@ public final class CommissionBot {
 
     private static void onTick(MinecraftClient client) {
         tick++;
+        Upkeep.clock();
         while (toggleKey.wasPressed()) setRunning(client, !running);
         if (!running) return;
         ClientPlayerEntity player = client.player;
@@ -160,12 +193,31 @@ public final class CommissionBot {
             return;
         }
         boolean claimScreen = state == State.CLAIM_OPEN || state == State.CLAIM_CLICK;
-        if (client.currentScreen != null && !claimScreen) {          // some other menu is open: pause
+        if (client.currentScreen != null && !claimScreen && !Upkeep.ownsScreen()) {   // some other menu is open: pause
             if (walker != null) walker.stop(client);
             return;
         }
         if (tick % 20 == 0) commissions = readCommissions(client);
         if (attackCooldown > 0) attackCooldown--;
+
+        // refuel / sell trips come first; afterwards it re-reads commissions and goes back
+        if (Upkeep.busy()) {
+            if (tick % 40 == 0) show(client, status);
+            if (Upkeep.tick(client) != Walker.Result.WALKING) {
+                state = State.WAIT;
+                timer = 20;
+            }
+            return;
+        }
+        boolean safe = state == State.MINE || state == State.FIGHT || state == State.READ || state == State.WAIT;
+        if (safe && tick % 10 == 0 && Upkeep.maybeStart(client)) {
+            stopMiner(client);
+            stopWalking(client);
+            onArrive = null;
+            show(client, status);
+            return;
+        }
+        if (state == State.MINE) Upkeep.tryBoost(client);
 
         switch (state) {
             case READ -> decide(client);
@@ -192,7 +244,7 @@ public final class CommissionBot {
             return;
         }
         for (Commission c : list) {
-            if (c.done()) {
+            if (c.done() || Upkeep.commissionComplete) {
                 startClaim(client);
                 return;
             }
@@ -201,7 +253,7 @@ public final class CommissionBot {
         for (Commission c : list) {
             Task t = taskFor(c.name());
             if (t.kind() == Kind.UNSUPPORTED) continue;
-            if (t.area() != null && !locations.containsKey(t.area())) {
+            if (t.area() != null && locationOf(t.area()) == null) {
                 if (missing == null) missing = t.area();
                 continue;
             }
@@ -239,7 +291,7 @@ public final class CommissionBot {
     }
 
     private static void startTask(MinecraftClient client) {
-        BlockPos home = task.area() != null ? locations.get(task.area()) : null;
+        BlockPos home = task.area() != null ? locationOf(task.area()) : null;
         State work = task.kind() == Kind.KILL ? State.FIGHT : State.MINE;
         if (home != null && client.player.getBlockPos().getSquaredDistance(home) > 12 * 12) {
             travelTo(client, home, 3.0, work, "Walking to " + task.area() + " for " + task.commission());
@@ -325,7 +377,7 @@ public final class CommissionBot {
         idleTicks = 0;
         markOreTried();                                    // the ore we came for didn't work out
         Set<String> blocks = task.kind() == Kind.MINE_TITANIUM ? TITANIUM : MITHRIL;
-        BlockPos home = task.area() != null ? locations.get(task.area()) : null;
+        BlockPos home = task.area() != null ? locationOf(task.area()) : null;
         // titanium spawns from mithril, so look for either; mithril is also fine for titanium commissions
         BlockPos ore = findOre(client, blocks, home);
         if (ore != null) {
@@ -343,6 +395,10 @@ public final class CommissionBot {
         } else if (home != null && client.player.getBlockPos().getSquaredDistance(home) > 6 * 6) {
             lastOre = null;
             travelTo(client, home, 3.0, State.MINE, "No ore nearby, going back to " + task.area());
+        } else if (home == null && locationOf("Upper Mines") != null
+                && client.player.getBlockPos().getSquaredDistance(locationOf("Upper Mines")) > 30 * 30) {
+            lastOre = null;
+            travelTo(client, locationOf("Upper Mines"), 3.0, State.MINE, "No ore here, going to the Upper Mines");
         } else {
             setStatus(client, "No " + (blocks == TITANIUM ? "titanium" : "mithril") + " nearby, waiting for it to come back...");
         }
@@ -449,7 +505,7 @@ public final class CommissionBot {
             state = State.READ;
             return;
         }
-        BlockPos home = task.area() != null ? locations.get(task.area()) : null;
+        BlockPos home = task.area() != null ? locationOf(task.area()) : null;
         LivingEntity mob = findMob(world, player, task.mobs(), 32, home);
         if (mob == null) {
             stopWalking(client);
@@ -536,6 +592,7 @@ public final class CommissionBot {
     // ------------------------------------------------------------------ claiming
 
     private static void startClaim(MinecraftClient client) {
+        Upkeep.commissionComplete = false;
         stopMiner(client);
         stopWalking(client);
         ClientPlayerEntity player = client.player;
@@ -554,6 +611,7 @@ public final class CommissionBot {
             return;
         }
         BlockPos npc = locations.get("Claim NPC");
+        if (npc == null) npc = nearestEmissary(player);
         if (npc != null) {
             if (player.getBlockPos().getSquaredDistance(npc) > 4 * 4) {
                 walker = useEtherwarp ? EtherTravel.to(npc, 2.5) : Walker.to(npc, 2.5);
@@ -562,7 +620,7 @@ public final class CommissionBot {
                     timer = 10;
                 };
                 state = State.TRAVEL;
-                setStatus(client, "Walking to the claim NPC...");
+                setStatus(client, "Walking to the Emissary to claim...");
             } else {
                 state = State.CLAIM_NPC;
                 timer = 10;
@@ -570,6 +628,7 @@ public final class CommissionBot {
             return;
         }
         setStatus(client, "A commission is done. Put a Royal Pigeon in your hotbar, or set \"Claim NPC\" in the menu.");
+        Upkeep.commissionComplete = false;
         if (!warnedNoClaim) {
             warnedNoClaim = true;
             player.sendMessage(Text.literal("[Commissions] ").formatted(Formatting.AQUA).append(Text.literal(
@@ -591,7 +650,7 @@ public final class CommissionBot {
             }
             case CLAIM_NPC -> {                       // right-click the NPC by the claim spot
                 if (--timer > 0) return;
-                Entity npc = findNpc(world, player);
+                Entity npc = findNpc(world, player, CLAIM_NAMES, 6);
                 if (npc == null) {
                     setStatus(client, "Can't find the claim NPC (Emissary / King) near the Claim NPC spot.");
                     waitFor(200);
@@ -671,10 +730,27 @@ public final class CommissionBot {
         return t.contains("commission") || t.contains("pigeon") || t.contains("emissary");
     }
 
-    private static Entity findNpc(ClientWorld world, ClientPlayerEntity player) {
-        List<String> names = List.of("Emissary", "King", "Commission");
+    private static final List<String> CLAIM_NAMES = List.of("Emissary", "King", "Commission",
+            "Fraiser", "Carlton", "Ceanna", "Wilson", "Lilith", "Braum");
+
+    private static BlockPos nearestEmissary(ClientPlayerEntity player) {
+        if (!useDefaults) return null;
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (BlockPos p : EMISSARIES.values()) {
+            double d = player.getBlockPos().getSquaredDistance(p);
+            if (d < bestD) {
+                bestD = d;
+                best = p;
+            }
+        }
+        return best;
+    }
+
+    /** The NPC (or its nametag) closest to you whose name contains one of the names, within range. */
+    static Entity findNpc(ClientWorld world, ClientPlayerEntity player, List<String> names, double range) {
         Entity best = null;
-        double bestD = 6 * 6;
+        double bestD = range * range;
         Vec3d tag = null;
         for (Entity e : world.getEntities()) {
             if (e instanceof ArmorStandEntity && nameMatches(e, names) && e.squaredDistanceTo(player) < bestD) {
@@ -737,6 +813,7 @@ public final class CommissionBot {
     }
 
     private static boolean anyDone() {
+        if (Upkeep.commissionComplete) return true;
         if (tick % 20 != 0) return false;
         for (Commission c : commissions) if (c.done()) return true;
         return false;
@@ -756,6 +833,7 @@ public final class CommissionBot {
     // ------------------------------------------------------------------ helpers
 
     private static void stopWork(MinecraftClient client) {
+        Upkeep.reset(client);
         triedOres.clear();
         lastOre = null;
         stopMiner(client);
@@ -791,6 +869,10 @@ public final class CommissionBot {
     public static void save() {
         StringBuilder sb = new StringBuilder();
         sb.append("option etherwarp ").append(useEtherwarp ? 1 : 0).append('\n');
+        sb.append("option refuel ").append(Upkeep.autoRefuel ? 1 : 0).append('\n');
+        sb.append("option sell ").append(Upkeep.autoSell ? 1 : 0).append('\n');
+        sb.append("option boost ").append(Upkeep.autoBoost ? 1 : 0).append('\n');
+        sb.append("option defaults ").append(useDefaults ? 1 : 0).append('\n');
         for (Map.Entry<String, BlockPos> e : locations.entrySet()) {
             BlockPos p = e.getValue();
             sb.append(p.getX()).append(' ').append(p.getY()).append(' ').append(p.getZ()).append(' ')
@@ -808,8 +890,16 @@ public final class CommissionBot {
         try {
             for (String line : Files.readAllLines(configFile, StandardCharsets.UTF_8)) {
                 String[] p = line.trim().split(" ", 4);
-                if (p.length == 3 && p[0].equals("option") && p[1].equals("etherwarp")) {
-                    useEtherwarp = !p[2].equals("0");
+                if (p.length == 3 && p[0].equals("option")) {
+                    boolean on = !p[2].equals("0");
+                    switch (p[1]) {
+                        case "etherwarp" -> useEtherwarp = on;
+                        case "refuel" -> Upkeep.autoRefuel = on;
+                        case "sell" -> Upkeep.autoSell = on;
+                        case "boost" -> Upkeep.autoBoost = on;
+                        case "defaults" -> useDefaults = on;
+                        default -> { }
+                    }
                 } else if (p.length == 4) {
                     locations.put(p[3], new BlockPos(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
                 }

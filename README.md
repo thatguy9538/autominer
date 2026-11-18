@@ -31,7 +31,10 @@ Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissio
    and repeats. The last ~8 blocks (and any jump it can't make: no AOTV, nothing to land on, 3 failed jumps e.g. out of
    mana) are walked. Switch to walking only with **Travel: Etherwarp / Walk** in the Commissions menu.
    **Walking**: it plans a walking route block by block (around walls, up 1-block steps, down drops of up to
-   3 blocks, never onto lava / fire / magma), sprints along it, and re-plans if it gets stuck.
+   3 blocks, never onto lava / fire / magma, keeping away from ledges and lava), then walks it in smooth straight
+   lines (it steers at the furthest point it can reach in a straight line instead of going block to block). It
+   doesn't sprint into jumps or drops, or for the last few blocks. It plans the next part of a long route before the current one runs out, re-plans if
+   something blocks the way, and when it's stuck it wiggles sideways and jumps before re-planning.
 3. **Does it:**
    * **Mithril / Titanium** commissions (any area, or area ones like *Royal Mines Mithril*): mines with Auto Miner
      (mithril = gray wool, cyan terracotta, all prismarine, light blue wool (first); titanium = polished diorite; titanium only appears when you mine mithril, so titanium commissions mine
@@ -41,14 +44,23 @@ Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissio
    * **Goblin Slayer** (Goblin Burrows), **Glacite / Ice Walker Slayer** (Great Ice Wall), **Treasure Hoarder** and
      **Star Sentry Puncher**: finds the mob by its nametag, walks up and hits it.
    * Powder collector, raffle, raid and other event commissions are skipped.
-4. **Claims** finished ones: uses a **Royal Pigeon** from your hotbar, clicks every completed commission in the menu, then switches back to the
-   slot you were using.
-   With no pigeon, it walks to your **Claim NPC** spot and right-clicks the Emissary / King there.
-5. Repeats.
+4. **Claims** finished ones as soon as chat says *Commission Complete!* (or the tab says DONE): uses a **Royal Pigeon**
+   from your hotbar if you have one, otherwise walks to the **nearest Emissary** (King, Fraiser, Carlton, Ceanna,
+   Wilson, Lilith) or your own **Claim NPC** spot if you set one. It clicks every completed commission, then switches
+   back to your drill.
+5. **Upkeep** (each one can be turned off in the Commissions menu):
+   * **Refuel**: when chat says your drill is empty, or its lore shows under 150 fuel, it walks to **Jotraeline**,
+     puts the drill and your best fuel (Volta > Oil Barrel > Biofuel > Goblin Egg > coal) in the anvil, refuels,
+     and puts the drill back in the same hotbar slot.
+   * **Sell**: when your inventory is full it runs **/bz**, clicks *Sell Inventory Now* and confirms. If things are
+     left that can't be sold, it stops trying for 5 minutes and tells you.
+   * **Boost**: while mining it right-clicks the drill whenever *Mining Speed Boost is now available!*.
+   If something goes wrong (no fuel, menu didn't open...) it tells you in chat and waits 5 minutes before trying again.
+6. Repeats.
 
-**Set the locations first:** open O > **Commissions...**, stand in each area (Upper Mines, Royal Mines, Lava Springs,
-Cliffside Veins, Rampart's Quarry, Goblin Burrows, Great Ice Wall, and optionally Claim NPC) and click **Set here**.
-Area commissions whose location isn't set are skipped (the status tells you which one to set). Locations are saved to
+**Locations:** every area, Jotraeline and the Emissaries have **built-in Hypixel coordinates** (yellow "(built-in)" in
+O > **Commissions...**). If Fakepixel's map is different, stand in the area and click **Set here**: your spot (green)
+always wins. Turn **Built-in: OFF** to use only your own spots. Locations are saved to
 `.minecraft/config/autominer-commissions.txt`. The status shows above the hotbar and in the Commissions menu.
 
 It pauses while any other menu is open, waits after you die, and gives up walking somewhere after several failed tries.

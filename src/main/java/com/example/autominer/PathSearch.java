@@ -95,7 +95,7 @@ public final class PathSearch {
                 boolean diag = d[0] != 0 && d[1] != 0;
                 Move m = move(w, n.pos, d[0], d[1], diag);
                 if (m == null) continue;
-                double g = n.g + m.cost;
+                double g = n.g + m.cost + edgePenalty(w, m.to);
                 if (g < best.getOrDefault(m.to, Double.MAX_VALUE)) {
                     best.put(m.to, g);
                     open.add(new Node(m.to, g, g + h(m.to, toward), n));
@@ -131,6 +131,28 @@ public final class PathSearch {
         }
         return null;
     }
+
+    /**
+     * Extra cost for standing next to a big drop or next to lava/fire, so paths keep away from
+     * ledges instead of hugging them (where a small slip makes you fall).
+     */
+    private static double edgePenalty(World w, Pos p) {
+        double extra = 0;
+        for (int[] d : CARDINAL) {
+            int x = p.x + d[0], z = p.z + d[1];
+            if (w.dangerous(x, p.y, z) || w.dangerous(x, p.y - 1, z)) {
+                extra += 1.5;
+                continue;
+            }
+            if (w.passable(x, p.y, z) && w.passable(x, p.y - 1, z) && w.passable(x, p.y - 2, z)
+                    && !w.standable(x, p.y - 1, z)) {
+                extra += 0.4;                              // open drop of 2+ blocks right beside us
+            }
+        }
+        return Math.min(extra, 2.0);
+    }
+
+    private static final int[][] CARDINAL = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
     /** Distance estimate: horizontal octile distance plus the height difference. */
     private static double h(Pos a, Pos b) {

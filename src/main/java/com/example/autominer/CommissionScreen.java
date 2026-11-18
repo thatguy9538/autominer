@@ -43,6 +43,29 @@ public class CommissionScreen extends Screen {
                     clearAndInit();
                 }).dimensions(left + w - 120, y, 120, 20).build());
 
+        y += 24;
+        int bw = (w - 12) / 4;
+        addDrawableChild(ButtonWidget.builder(onOff("Refuel", Upkeep.autoRefuel), b -> {
+            Upkeep.autoRefuel = !Upkeep.autoRefuel;
+            CommissionBot.save();
+            clearAndInit();
+        }).dimensions(left, y, bw, 20).build());
+        addDrawableChild(ButtonWidget.builder(onOff("Sell", Upkeep.autoSell), b -> {
+            Upkeep.autoSell = !Upkeep.autoSell;
+            CommissionBot.save();
+            clearAndInit();
+        }).dimensions(left + (bw + 4), y, bw, 20).build());
+        addDrawableChild(ButtonWidget.builder(onOff("Boost", Upkeep.autoBoost), b -> {
+            Upkeep.autoBoost = !Upkeep.autoBoost;
+            CommissionBot.save();
+            clearAndInit();
+        }).dimensions(left + 2 * (bw + 4), y, bw, 20).build());
+        addDrawableChild(ButtonWidget.builder(onOff("Built-in", CommissionBot.useDefaults), b -> {
+            CommissionBot.useDefaults = !CommissionBot.useDefaults;
+            CommissionBot.save();
+            clearAndInit();
+        }).dimensions(left + 3 * (bw + 4), y, w - 3 * (bw + 4), 20).build());
+
         areasTop = y + 26 + 12 + 6 * 10 + 14;
         int rows = CommissionBot.AREAS.size();
         int maxRows = Math.max(1, (height - 30 - areasTop) / ROW_H);
@@ -67,7 +90,7 @@ public class CommissionScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         super.render(ctx, mouseX, mouseY, delta);
         ctx.drawCenteredTextWithShadow(textRenderer, title, width / 2, 10, 0xFFFFFFFF);
-        int y = 52;
+        int y = 76;
 
         ctx.drawTextWithShadow(textRenderer, Text.literal("Now: ").formatted(Formatting.GRAY)
                 .append(Text.literal(textRenderer.trimToWidth(CommissionBot.status, w - 30))), left, y, 0xFFFFFFFF);
@@ -90,13 +113,21 @@ public class CommissionScreen extends Screen {
         for (int i = 0; i < Math.min(CommissionBot.AREAS.size(), maxRows); i++) {
             String area = CommissionBot.AREAS.get(i);
             int ry = areasTop + i * ROW_H;
-            BlockPos p = CommissionBot.locations.get(area);
+            BlockPos mine = CommissionBot.locations.get(area);
+            BlockPos p = CommissionBot.locationOf(area);
             ctx.fill(left, ry, left + w - 108, ry + 20, 0x60000000);
             ctx.drawTextWithShadow(textRenderer, area, left + 6, ry + 6, 0xFFFFFFFF);
-            String where = p == null ? "not set" : p.getX() + ", " + p.getY() + ", " + p.getZ();
-            ctx.drawTextWithShadow(textRenderer, where, left + w - 112 - textRenderer.getWidth(where), ry + 6,
-                    p == null ? 0xFFFF5555 : 0xFF55FF55);
+            String where = p == null ? (area.equals("Claim NPC") ? "nearest Emissary" : "not set")
+                    : p.getX() + ", " + p.getY() + ", " + p.getZ() + (mine == null ? " (built-in)" : "");
+            int color = p == null ? (area.equals("Claim NPC") ? 0xFFAAAAAA : 0xFFFF5555)
+                    : mine == null ? 0xFFFFFF55 : 0xFF55FF55;
+            ctx.drawTextWithShadow(textRenderer, where, left + w - 112 - textRenderer.getWidth(where), ry + 6, color);
         }
+    }
+
+    private static Text onOff(String what, boolean on) {
+        return Text.literal(what + ": ").append(on ? Text.literal("ON").formatted(Formatting.GREEN)
+                : Text.literal("OFF").formatted(Formatting.RED));
     }
 
     @Override
