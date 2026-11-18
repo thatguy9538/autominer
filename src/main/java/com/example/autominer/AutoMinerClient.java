@@ -75,9 +75,10 @@ public class AutoMinerClient implements ClientModInitializer {
 
     /** Ticks a block may be out of sight before giving up on it. */
     private static final int GRACE_TICKS = 10;
-    /** Give up on a block that hasn't broken after this long (30 s), and skip it for a while. */
-    private static final int MAX_BLOCK_TICKS = 600;
-    private static final int SKIP_TICKS = 200;
+    /** Give up on a block that hasn't broken after this long (10 s) - probably one the server won't let you
+     *  break (decoration) - and skip it for 5 minutes. */
+    private static final int MAX_BLOCK_TICKS = 200;
+    private static final int SKIP_TICKS = 6000;
     /** How often to look for a higher-priority block than the planned path (1 s). */
     private static final int PRIORITY_CHECK_TICKS = 20;
 
@@ -256,8 +257,10 @@ public class AutoMinerClient implements ClientModInitializer {
             } else if (!inReach(player, currentPos)) {
                 dropBlock(client);                  // walked out of reach
             } else if (blockTicks > MAX_BLOCK_TICKS) {
-                skipped.put(currentPos, tickCount + SKIP_TICKS);   // stuck (ghost block?): skip it for a while
+                skipped.put(currentPos, tickCount + SKIP_TICKS);   // won't break: skip it for a while
                 dropBlock(client);
+                say(client, Text.literal("Auto Miner: that block won't break, skipping it for 5 minutes")
+                        .formatted(Formatting.GOLD));
             } else {
                 Aim aim = visibleAim(world, eye, currentPos, player);
                 if (aim != null) {

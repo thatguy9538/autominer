@@ -60,7 +60,14 @@ public final class CommissionBot {
     private static final Set<String> MITHRIL = Set.of(
             "minecraft:gray_wool", "minecraft:cyan_terracotta", "minecraft:prismarine",
             "minecraft:prismarine_bricks", "minecraft:dark_prismarine", "minecraft:light_blue_wool");
-    private static final Set<String> TITANIUM = Set.of("minecraft:polished_diorite");
+    private static final Set<String> TITANIUM_ONLY = Set.of("minecraft:polished_diorite");
+    /** Titanium only appears when you mine mithril, so titanium commissions mine both (titanium first). */
+    private static final Set<String> TITANIUM;
+    static {
+        java.util.HashSet<String> t = new java.util.HashSet<>(MITHRIL);
+        t.addAll(TITANIUM_ONLY);
+        TITANIUM = java.util.Collections.unmodifiableSet(t);
+    }
 
     private enum Kind { MINE_MITHRIL, MINE_TITANIUM, KILL, UNSUPPORTED }
 
@@ -312,6 +319,7 @@ public final class CommissionBot {
         markOreTried();                                    // the ore we came for didn't work out
         Set<String> blocks = task.kind() == Kind.MINE_TITANIUM ? TITANIUM : MITHRIL;
         BlockPos home = task.area() != null ? locations.get(task.area()) : null;
+        // titanium spawns from mithril, so look for either; mithril is also fine for titanium commissions
         BlockPos ore = findOre(client, blocks, home);
         if (ore != null) {
             stopMiner(client);
@@ -403,7 +411,8 @@ public final class CommissionBot {
         usingTargets = true;
         AutoMinerClient.targets.clear();
         for (String id : blocks) {
-            int prio = id.endsWith("light_blue_wool") ? 4 : AutoMinerClient.DEFAULT_PRIORITY;   // best mithril first
+            int prio = TITANIUM_ONLY.contains(id) ? 5                 // titanium whenever it shows up
+                    : id.endsWith("light_blue_wool") ? 4 : AutoMinerClient.DEFAULT_PRIORITY;   // best mithril first
             AutoMinerClient.targets.put(id, new AutoMinerClient.Target(id.substring(10).replace('_', ' '), prio));
         }
         AutoMinerClient.setEnabled(client, true);

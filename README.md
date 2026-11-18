@@ -30,7 +30,8 @@ Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissio
    3 blocks, never onto lava / fire / magma), sprints along it, and re-plans if it gets stuck.
 3. **Does it:**
    * **Mithril / Titanium** commissions (any area, or area ones like *Royal Mines Mithril*): mines with Auto Miner
-     (mithril = gray wool, cyan terracotta, all prismarine, light blue wool (first); titanium = polished diorite).
+     (mithril = gray wool, cyan terracotta, all prismarine, light blue wool (first); titanium = polished diorite; titanium only appears when you mine mithril, so titanium commissions mine
+     mithril too and grab any titanium first).
      When nothing's left in reach it walks to the nearest exposed ore nearby (staying within 40 blocks of the area), stopping
      only where it can actually see the ore. Ores it couldn't mine or reach are skipped for 60 s.
    * **Goblin Slayer** (Goblin Burrows), **Glacite / Ice Walker Slayer** (Great Ice Wall), **Treasure Hoarder** and
@@ -63,7 +64,7 @@ Your own Auto Miner targets are put back when it stops.
   and your drill decide how fast it breaks. It only holds the button while your crosshair is on the target, so it never
   mines anything else. **Classic** mode uses Minecraft's normal breaking and works better for plain vanilla blocks.
 * **Doesn't give up on flickers:** a block can be out of sight for half a second (particles, armor stands, moving) before
-  it's dropped. A block that hasn't broken after 30 seconds (a ghost block, say) is skipped for 10 seconds.
+  it's dropped. A block that hasn't broken after 10 seconds (decoration the server won't let you break, a ghost block) is skipped for 5 minutes.
 * **Finds odd shapes:** it looks for a clear line of sight to 55 points on the block's real shape, so heads, slabs and
   blocks round corners are found.
 * **Stays in reach:** a block only counts if its centre is within your reach (minus a small safety margin), and every
@@ -86,5 +87,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-3.0.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-3.0.2.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.
