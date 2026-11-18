@@ -31,7 +31,8 @@ Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissio
 3. **Does it:**
    * **Mithril / Titanium** commissions (any area, or area ones like *Royal Mines Mithril*): mines with Auto Miner
      (mithril = gray wool, cyan terracotta, all prismarine, light blue wool (first); titanium = polished diorite).
-     When nothing's left in reach it walks to the nearest exposed ore nearby (staying within 40 blocks of the area).
+     When nothing's left in reach it walks to the nearest exposed ore nearby (staying within 40 blocks of the area), stopping
+     only where it can actually see the ore. Ores it couldn't mine or reach are skipped for 60 s.
    * **Goblin Slayer** (Goblin Burrows), **Glacite / Ice Walker Slayer** (Great Ice Wall), **Treasure Hoarder** and
      **Star Sentry Puncher**: finds the mob by its nametag, walks up and hits it.
    * Powder collector, raffle, raid and other event commissions are skipped.
@@ -85,5 +86,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-3.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-3.0.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

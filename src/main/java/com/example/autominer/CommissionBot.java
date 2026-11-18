@@ -86,6 +86,11 @@ public final class CommissionBot {
     /** True while the bot has swapped Auto Miner's targets (so they aren't saved). */
     public static boolean usingTargets = false;
     private static String lastShown = "";
+    /** Ores we walked to but couldn't mine (not visible / unreachable), skipped until the given tick. */
+    private static final Map<BlockPos, Long> triedOres = new java.util.HashMap<>();
+    private static final int TRIED_TICKS = 1200;          // 60 s
+    /** The ore we're walking to (or just walked to), so it can be marked as tried if it doesn't work out. */
+    private static BlockPos lastOre = null;
 
     private static KeyBinding toggleKey;
     private static Path configFile;
@@ -261,6 +266,7 @@ public final class CommissionBot {
         walker.stop(client);
         walker = null;
         if (r == Walker.Result.FAILED) {
+            markOreTried();                                // couldn't get to that ore: skip it for a while
             if (++travelFails >= 3) {
                 setStatus(client, "Can't find a way there. Move closer, or set the location somewhere easier to reach.");
                 travelFails = 0;
@@ -298,21 +304,28 @@ public final class CommissionBot {
         if (tick % 40 == 0) setStatus(client, "Mining for " + task.commission() + progressOf(task.commission()));
         if (!AutoMinerClient.isIdle()) {
             idleTicks = 0;
+            lastOre = null;                                // it's mining: that spot worked
             return;
         }
         if (++idleTicks < 40) return;                       // nothing in reach for 2 s: go find more
         idleTicks = 0;
+        markOreTried();                                    // the ore we came for didn't work out
         Set<String> blocks = task.kind() == Kind.MINE_TITANIUM ? TITANIUM : MITHRIL;
         BlockPos home = task.area() != null ? locations.get(task.area()) : null;
         BlockPos ore = findOre(client, blocks, home);
         if (ore != null) {
             stopMiner(client);
-            walker = new Walker(p -> eyeDistance(p, ore) <= 3.6, ore);
+            lastOre = ore;
+            ClientWorld world = client.world;
+            ClientPlayerEntity player = client.player;
+            // stop somewhere close enough AND with a clear view of the ore, so Auto Miner can mine it
+            walker = new Walker(p -> eyeDistance(p, ore) <= 3.6 && canSeeFrom(world, player, p, ore), ore);
             afterTravel = State.MINE;
             onArrive = () -> beginWork(client, State.MINE);
             state = State.TRAVEL;
             setStatus(client, "Walking to more " + (blocks == TITANIUM ? "titanium" : "mithril"));
         } else if (home != null && client.player.getBlockPos().getSquaredDistance(home) > 6 * 6) {
+            lastOre = null;
             travelTo(client, home, 3.0, State.MINE, "No ore nearby, going back to " + task.area());
         } else {
             setStatus(client, "No " + (blocks == TITANIUM ? "titanium" : "mithril") + " nearby, waiting for it to come back...");
@@ -328,6 +341,7 @@ public final class CommissionBot {
 
     /** The closest exposed ore block within ~24 blocks (and within 40 of the area, if it has one). */
     private static BlockPos findOre(MinecraftClient client, Set<String> blocks, BlockPos home) {
+        triedOres.values().removeIf(until -> until < tick);
         ClientWorld world = client.world;
         BlockPos me = client.player.getBlockPos();
         BlockPos.Mutable p = new BlockPos.Mutable();
@@ -338,7 +352,8 @@ public final class CommissionBot {
                 for (int z = -24; z <= 24; z++) {
                     p.set(me.getX() + x, me.getY() + y, me.getZ() + z);
                     double d = p.getSquaredDistance(me);
-                    if (d >= bestD || d < 4 * 4) continue;      // ones right next to us were already tried
+                    if (d >= bestD) continue;
+                    if (triedOres.containsKey(p)) continue;    // already tried and couldn't mine it
                     if (home != null && p.getSquaredDistance(home) > 40 * 40) continue;
                     if (!blocks.contains(Registries.BLOCK.getId(world.getBlockState(p).getBlock()).toString())) continue;
                     if (!exposed(world, p)) continue;
@@ -348,6 +363,31 @@ public final class CommissionBot {
             }
         }
         return best;
+    }
+
+    private static void markOreTried() {
+        if (lastOre != null) {
+            triedOres.put(lastOre, tick + TRIED_TICKS);
+            lastOre = null;
+        }
+    }
+
+    /** Could you see the ore from standing at `feet`? Checks the middle and the middle of each face. */
+    private static boolean canSeeFrom(ClientWorld world, ClientPlayerEntity player, BlockPos feet, BlockPos ore) {
+        Vec3d eye = new Vec3d(feet.getX() + 0.5, feet.getY() + 1.62, feet.getZ() + 0.5);
+        Vec3d c = Vec3d.ofCenter(ore);
+        List<Vec3d> points = new ArrayList<>();
+        points.add(c);
+        for (net.minecraft.util.math.Direction d : net.minecraft.util.math.Direction.values()) {
+            points.add(c.add(d.getOffsetX() * 0.49, d.getOffsetY() * 0.49, d.getOffsetZ() * 0.49));
+        }
+        for (Vec3d pt : points) {
+            net.minecraft.util.hit.BlockHitResult hit = world.raycast(new net.minecraft.world.RaycastContext(
+                    eye, pt, net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
+                    net.minecraft.world.RaycastContext.FluidHandling.NONE, player));
+            if (hit.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK && hit.getBlockPos().equals(ore)) return true;
+        }
+        return false;
     }
 
     private static boolean exposed(ClientWorld world, BlockPos p) {
@@ -667,6 +707,8 @@ public final class CommissionBot {
     // ------------------------------------------------------------------ helpers
 
     private static void stopWork(MinecraftClient client) {
+        triedOres.clear();
+        lastOre = null;
         stopMiner(client);
         stopWalking(client);
         onArrive = null;
