@@ -1,4 +1,4 @@
-# Auto Miner 2.4: Fabric mod for Minecraft 1.21.10
+# Auto Miner 3.0: Fabric mod for Minecraft 1.21.10
 
 Pick one or more blocks, and the mod mines every matching block within your reach that you can see.
 Built to cope with custom server blocks and drills.
@@ -7,6 +7,7 @@ Built to cope with custom server blocks and drills.
 | Key | Action |
 |-----|--------|
 | **O** | Open the Auto Miner menu |
+| **K** | Start / stop doing commissions |
 | **G** | Add the block you're looking at to the target list (press again to remove it) |
 | **J** | Clear the target list |
 | **H** | Turn mining on / off |
@@ -21,6 +22,30 @@ Rebind them in **Options → Controls → Key Binds → Auto Miner**.
 * **Targets**, highest priority first. Each has a **priority from 1 (Lowest) to 5 (Highest)**, default 3; use - and +
   to change it, and the red X to remove it. Scroll if the list is long.
 * Everything (targets, priorities, settings) is saved to `.minecraft/config/autominer.txt`.
+
+## Commissions (Dwarven Mines)
+Press **K** (or O > **Commissions...** > Commissions: OFF) and it does commissions by itself:
+1. **Reads your commissions** from the tab list (lines like `Royal Mines Mithril: 45%` / `Goblin Slayer: DONE`).
+2. **Walks there**: it plans a walking route block by block (around walls, up 1-block steps, down drops of up to
+   3 blocks, never onto lava / fire / magma), sprints along it, and re-plans if it gets stuck.
+3. **Does it:**
+   * **Mithril / Titanium** commissions (any area, or area ones like *Royal Mines Mithril*): mines with Auto Miner
+     (mithril = gray wool, cyan terracotta, all prismarine, light blue wool (first); titanium = polished diorite).
+     When nothing's left in reach it walks to the nearest exposed ore nearby (staying within 40 blocks of the area).
+   * **Goblin Slayer** (Goblin Burrows), **Glacite / Ice Walker Slayer** (Great Ice Wall), **Treasure Hoarder** and
+     **Star Sentry Puncher**: finds the mob by its nametag, walks up and hits it.
+   * Powder collector, raffle, raid and other event commissions are skipped.
+4. **Claims** finished ones: uses a **Royal Pigeon** from your hotbar and clicks every completed commission in the menu.
+   With no pigeon, it walks to your **Claim NPC** spot and right-clicks the Emissary / King there.
+5. Repeats.
+
+**Set the locations first:** open O > **Commissions...**, stand in each area (Upper Mines, Royal Mines, Lava Springs,
+Cliffside Veins, Rampart's Quarry, Goblin Burrows, Great Ice Wall, and optionally Claim NPC) and click **Set here**.
+Area commissions whose location isn't set are skipped (the status tells you which one to set). Locations are saved to
+`.minecraft/config/autominer-commissions.txt`. The status shows above the hotbar and in the Commissions menu.
+
+It pauses while any other menu is open, waits after you die, and gives up walking somewhere after several failed tries.
+Your own Auto Miner targets are put back when it stops.
 
 ## Priorities
 * Higher priority blocks are always picked first.
@@ -60,5 +85,5 @@ you switch away).
 > Many multiplayer servers ban auto-mining mods. Check the rules before using it there.
 
 ## Install
-Put `autominer-2.4.1.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
+Put `autominer-3.0.0.jar` and Fabric API (1.21.10) in `.minecraft/mods`, then launch with Fabric Loader for 1.21.10.
 Remove the old autominer jar.

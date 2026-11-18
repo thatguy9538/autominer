@@ -74,7 +74,7 @@ public class AutoMinerScreen extends Screen {
         // ---- target list
         listTop = y + 12;
         int bottomButtons = height - 28;
-        rowsShown = Math.max(1, (bottomButtons - 6 - listTop) / ROW_H);
+        rowsShown = Math.max(1, (bottomButtons - 30 - listTop) / ROW_H);
         List<Map.Entry<String, AutoMinerClient.Target>> list = AutoMinerClient.sortedTargets();
         scroll = Math.max(0, Math.min(scroll, list.size() - rowsShown));
         for (int i = 0; i < rowsShown && scroll + i < list.size(); i++) {
@@ -104,6 +104,9 @@ public class AutoMinerScreen extends Screen {
 
         // ---- bottom
         int half = (w - 4) / 2;
+        addDrawableChild(ButtonWidget.builder(Text.literal("Commissions...").formatted(Formatting.AQUA),
+                b -> client.setScreen(new CommissionScreen(this)))
+                .dimensions(x, bottomButtons - 24, w, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Clear all").formatted(Formatting.RED), b -> {
             AutoMinerClient.clearTargets(client);
             clearAndInit();
@@ -173,7 +176,7 @@ public class AutoMinerScreen extends Screen {
         }
 
         if (!message.getString().isEmpty()) {
-            ctx.drawCenteredTextWithShadow(textRenderer, message, width / 2, height - 40, 0xFFFFFFFF);
+            ctx.drawCenteredTextWithShadow(textRenderer, message, width / 2, height - 64, 0xFFFFFFFF);
         }
     }
 

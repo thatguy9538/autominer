@@ -147,6 +147,7 @@ public class AutoMinerClient implements ClientModInitializer {
         clearKey = reg("key.autominer.clear", GLFW.GLFW_KEY_J);
         modeKey = reg("key.autominer.mode", GLFW.GLFW_KEY_L);
         ClientTickEvents.END_CLIENT_TICK.register(AutoMinerClient::onTick);
+        CommissionBot.init();
     }
 
     private static KeyBinding reg(String name, int key) {
@@ -177,6 +178,11 @@ public class AutoMinerClient implements ClientModInitializer {
                 .append(name.copy().formatted(Formatting.WHITE))
                 .append(Text.literal("  (" + targets.size() + " target" + (targets.size() == 1 ? "" : "s") + ")")
                         .formatted(Formatting.GRAY));
+    }
+
+    /** Nothing being mined and nothing planned (no target blocks in reach). */
+    public static boolean isIdle() {
+        return currentPos == null && path.isEmpty();
     }
 
     public static void setEnabled(MinecraftClient client, boolean on) {
@@ -597,7 +603,7 @@ public class AutoMinerClient implements ClientModInitializer {
     private static final float MAX_TURN = 25f, MIN_TURN = 0.4f;
 
     /** Turns toward the point smoothly: fast when it's far away, slowing down as it gets close. */
-    private static void aimAt(ClientPlayerEntity player, Vec3d point) {
+    static void aimAt(ClientPlayerEntity player, Vec3d point) {
         if (point == null) return;
         Vec3d eye = player.getEyePos();
         double dx = point.x - eye.x, dy = point.y - eye.y, dz = point.z - eye.z;
@@ -646,7 +652,7 @@ public class AutoMinerClient implements ClientModInitializer {
     }
 
     public static void save() {
-        if (configFile == null) return;
+        if (configFile == null || CommissionBot.usingTargets) return;   // don't save the bot's temporary targets
         StringBuilder sb = new StringBuilder();
         sb.append("mode ").append(holdMode ? "hold" : "classic").append('\n');
         sb.append("turn ").append(turnFraction).append('\n');
