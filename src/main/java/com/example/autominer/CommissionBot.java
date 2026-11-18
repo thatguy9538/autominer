@@ -93,6 +93,9 @@ public final class CommissionBot {
     /** True while the bot has swapped Auto Miner's targets (so they aren't saved). */
     public static boolean usingTargets = false;
     private static String lastShown = "";
+    /** Hotbar slot you had selected before switching to the pigeon (-1 = none). */
+    private static int slotBeforeClaim = -1;
+    private static boolean warnedNoClaim = false;
     /** Ores we walked to but couldn't mine (not visible / unreachable), skipped until the given tick. */
     private static final Map<BlockPos, Long> triedOres = new java.util.HashMap<>();
     private static final int TRIED_TICKS = 1200;          // 60 s
@@ -122,6 +125,7 @@ public final class CommissionBot {
             state = State.READ;
             claimTries = 0;
             travelFails = 0;
+            warnedNoClaim = false;
             show(client, "Commissions: started");
         } else {
             stopWork(client);
@@ -538,6 +542,7 @@ public final class CommissionBot {
             if (!s.isEmpty() && n != null && n.toLowerCase(Locale.ROOT).contains("pigeon")) pigeon = i;
         }
         if (pigeon >= 0) {
+            slotBeforeClaim = player.getInventory().getSelectedSlot();
             player.getInventory().setSelectedSlot(pigeon);
             state = State.CLAIM_SELECT;
             timer = 4;
@@ -561,6 +566,13 @@ public final class CommissionBot {
             return;
         }
         setStatus(client, "A commission is done. Put a Royal Pigeon in your hotbar, or set \"Claim NPC\" in the menu.");
+        if (!warnedNoClaim) {
+            warnedNoClaim = true;
+            player.sendMessage(Text.literal("[Commissions] ").formatted(Formatting.AQUA).append(Text.literal(
+                    "A commission is finished but I can't claim it: put a Royal Pigeon in your hotbar, or stand by the "
+                            + "Emissary / King and click \"Set here\" on \"Claim NPC\" in O > Commissions...")
+                    .formatted(Formatting.YELLOW)), false);
+        }
         waitFor(200);
     }
 
@@ -588,12 +600,12 @@ public final class CommissionBot {
                 timer = 60;
             }
             case CLAIM_OPEN -> {                      // wait for the Commissions menu
-                if (client.currentScreen instanceof HandledScreen<?> hs
-                        && hs.getTitle().getString().toLowerCase(Locale.ROOT).contains("commission")) {
+                if (client.currentScreen instanceof HandledScreen<?> hs && isClaimMenu(hs.getTitle().getString())) {
                     state = State.CLAIM_CLICK;
                     timer = 10;
                 } else if (--timer <= 0) {
                     if (client.currentScreen != null) player.closeHandledScreen();
+                    restoreSlot(player);
                     if (++claimTries >= 3) {
                         claimTries = 0;
                         setStatus(client, "The Commissions menu didn't open. Check the pigeon / NPC.");
@@ -619,11 +631,19 @@ public final class CommissionBot {
                     }
                 }
                 player.closeHandledScreen();          // nothing left to claim
+                restoreSlot(player);
                 claimTries = 0;
                 setStatus(client, "Claimed! Reading the new commissions...");
                 waitFor(30);
             }
             default -> { }
+        }
+    }
+
+    private static void restoreSlot(ClientPlayerEntity player) {
+        if (slotBeforeClaim >= 0) {
+            player.getInventory().setSelectedSlot(slotBeforeClaim);   // back to your drill
+            slotBeforeClaim = -1;
         }
     }
 
@@ -634,9 +654,17 @@ public final class CommissionBot {
             String s = Formatting.strip(line.getString());
             if (s == null) continue;
             s = s.toLowerCase(Locale.ROOT);
-            if (s.contains("completed") || s.contains("click to claim")) return true;
+            if (s.contains("completed") || s.contains("click to claim") || s.contains("claim reward")
+                    || s.contains("ready to claim") || s.equals("done") || s.contains("100%")) return true;
         }
         return false;
+    }
+
+    private static boolean isClaimMenu(String title) {
+        String t = Formatting.strip(title);
+        if (t == null) return false;
+        t = t.toLowerCase(Locale.ROOT);
+        return t.contains("commission") || t.contains("pigeon") || t.contains("emissary");
     }
 
     private static Entity findNpc(ClientWorld world, ClientPlayerEntity player) {
@@ -687,7 +715,15 @@ public final class CommissionBot {
             boolean looks = false;
             for (String w : COMMISSION_WORDS) if (lower.contains(w)) looks = true;
             if (!looks) continue;
-            out.add(new Commission(name, m.group(2), m.group(2).equals("DONE")));
+            String prog = m.group(2);
+            boolean done = prog.equals("DONE");
+            if (!done && prog.endsWith("%")) {
+                try {
+                    done = Double.parseDouble(prog.substring(0, prog.length() - 1)) >= 100.0;   // "100%" counts too
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            out.add(new Commission(name, prog, done));
         }
         return out;
     }
