@@ -1,26 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "powderassist",
+  "id": "stickykeys",
   "version": "${version}",
-  "name": "Powder Assist",
-  "description": "Crystal Hollows powder grinding helper: treasure chest solver, chest ESP, hardstone auto-mine and a powder tracker HUD. U = menu, J = auto-mine.",
-  "authors": [
-    "You"
-  ],
+  "name": "Sticky Keys",
+  "description": "Make any key binding sticky.",
+  "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "entrypoints": {
-    "client": [
-      "com.example.powderassist.PowderAssistClient"
-    ]
-  },
-  "depends": {
-    "fabricloader": ">=0.17.0",
-    "minecraft": "~1.21.10",
-    "java": ">=21",
-    "fabric-api": "*"
-  },
-  "mixins": [
-    "powderassist.mixins.json"
-  ]
+  "entrypoints": { "client": ["com.example.stickykeys.StickyKeysClient"] },
+  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }
