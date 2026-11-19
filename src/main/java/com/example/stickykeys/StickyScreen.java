@@ -262,7 +262,7 @@ public class StickyScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         int visible = Math.max(1, (listBottom - listTop) / ROW_H);
         int max = Math.max(0, entries.size() - visible);
-        int next = Math.max(0, Math.min(max, scroll - (int) Math.signum(verticalAmount) * 3));
+        int next = Math.max(0, Math.min(max, scroll - (int) Math.signum(verticalAmount)));
         if (next != scroll) {
             scroll = next;
             searchFocused = search != null && search.isFocused();
