@@ -31,6 +31,8 @@ public final class Sticky {
     public static boolean hud = true;
     /** 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right, 4 = above the hotbar. */
     public static int hudCorner = 4;
+    /** Whether the on/off key has been given its default (Y) once. */
+    public static boolean toggleKeyDefaulted = false;
     /** Ids of the bindings that are sticky ("key.forward", "key.attack"...). */
     public static final Set<String> sticky = new LinkedHashSet<>();
 
@@ -146,6 +148,7 @@ public final class Sticky {
                     case "enabled" -> enabled = v.equals("true");
                     case "releaseInMenus" -> releaseInMenus = v.equals("true");
                     case "hud" -> hud = v.equals("true");
+                    case "toggleKeyDefaulted" -> toggleKeyDefaulted = v.equals("true");
                     case "hudCorner" -> hudCorner = Math.floorMod(Integer.parseInt(v), 5);
                     case "sticky" -> {
                         sticky.clear();
@@ -161,7 +164,7 @@ public final class Sticky {
     public static void save() {
         if (configFile == null) return;
         String s = "enabled=" + enabled + "\nreleaseInMenus=" + releaseInMenus + "\nhud=" + hud
-                + "\nhudCorner=" + hudCorner + "\nsticky=" + String.join(",", sticky) + "\n";
+                + "\nhudCorner=" + hudCorner + "\ntoggleKeyDefaulted=" + toggleKeyDefaulted + "\nsticky=" + String.join(",", sticky) + "\n";
         try {
             Files.createDirectories(configFile.getParent());
             Files.writeString(configFile, s, StandardCharsets.UTF_8);

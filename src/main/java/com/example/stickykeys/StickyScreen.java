@@ -4,7 +4,10 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import org.lwjgl.glfw.GLFW;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -26,6 +29,9 @@ public class StickyScreen extends Screen {
     private TextFieldWidget search;
     private String query = "";
     private boolean searchFocused = false;
+    /** Waiting for a key press to set the on/off key. */
+    private boolean listening = false;
+    private int toggleKeyRowY = 0;
     private int scroll = 0;
     private int left, w, listTop, listBottom;
 
@@ -61,6 +67,17 @@ public class StickyScreen extends Screen {
             Sticky.hudCorner = (Sticky.hudCorner + 1) % 5;
             Sticky.save();
         });
+        y += 24;
+
+        // the key that turns every sticky key on / off
+        KeyBinding tk = StickyKeysClient.toggleKey;
+        Text keyText = listening
+                ? Text.literal("> press a key <").formatted(Formatting.YELLOW)
+                : tk.isUnbound() ? Text.literal("not bound").formatted(Formatting.GRAY)
+                : tk.getBoundKeyLocalizedText().copy().formatted(Formatting.AQUA);
+        int kb = 120;
+        button(left + w - kb, y, kb, keyText, () -> listening = !listening);
+        toggleKeyRowY = y;
         y += 26;
 
         // search
@@ -138,7 +155,9 @@ public class StickyScreen extends Screen {
 
     private void button(int x, int y, int bw, Text label, Runnable action) {
         addDrawableChild(ButtonWidget.builder(label, btn -> {
+            boolean wasListening = listening;
             action.run();
+            if (wasListening && listening) listening = false;   // any other click cancels
             searchFocused = false;
             clearAndInit();
         }).dimensions(x, y, bw, 20).build());
@@ -176,6 +195,13 @@ public class StickyScreen extends Screen {
         ctx.drawCenteredTextWithShadow(textRenderer, "Press a sticky key once to hold it, press it again to let go",
                 width / 2, 22, 0xFF9AA0A6);
 
+        // on/off key row
+        ctx.fill(left, toggleKeyRowY, left + w, toggleKeyRowY + 20, 0x40FFFFFF);
+        ctx.drawTextWithShadow(textRenderer, Text.literal("On / off key").formatted(Formatting.BOLD),
+                left + 8, toggleKeyRowY + 6, 0xFFFFFFFF);
+        String hint = listening ? "Esc = cancel, Backspace = unbind" : "turns every sticky key on and off";
+        ctx.drawTextWithShadow(textRenderer, hint, left + 80, toggleKeyRowY + 6, 0xFF9AA0A6);
+
         int visible = Math.max(1, (listBottom - listTop) / ROW_H);
         for (int i = 0; i < visible && scroll + i < entries.size(); i++) {
             Entry e = entries.get(scroll + i);
@@ -212,6 +238,24 @@ public class StickyScreen extends Screen {
             ctx.fill(left + w + 2, listTop, left + w + 4, listBottom, 0x40FFFFFF);
             ctx.fill(left + w + 2, barY, left + w + 4, barY + barH, 0xFFAAAAAA);
         }
+    }
+
+    /** While listening: the next key becomes the on/off key (Esc cancels, Backspace/Delete unbinds). */
+    @Override
+    public boolean keyPressed(KeyInput input) {
+        if (listening) {
+            int code = input.key();
+            listening = false;
+            if (code == GLFW.GLFW_KEY_BACKSPACE || code == GLFW.GLFW_KEY_DELETE) {
+                StickyKeysClient.setToggleKey(client, InputUtil.UNKNOWN_KEY);
+            } else if (code != GLFW.GLFW_KEY_ESCAPE) {
+                StickyKeysClient.setToggleKey(client, InputUtil.Type.KEYSYM.createFromCode(code));
+            }
+            searchFocused = false;
+            clearAndInit();
+            return true;
+        }
+        return super.keyPressed(input);
     }
 
     @Override

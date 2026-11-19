@@ -19,7 +19,9 @@ import java.util.List;
 public class StickyKeysClient implements ClientModInitializer {
 
     public static final String MOD_ID = "stickykeys";
-    private static KeyBinding menuKey, toggleKey, releaseKey;
+    private static KeyBinding menuKey, releaseKey;
+    /** Turns every sticky key on / off at once. Default Y; rebind it in the Sticky Keys screen or Controls. */
+    public static KeyBinding toggleKey;
 
     @Override
     public void onInitializeClient() {
@@ -28,7 +30,7 @@ public class StickyKeysClient implements ClientModInitializer {
         menuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.stickykeys.menu",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, cat));
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.stickykeys.toggle",
-                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, cat));
+                InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_Y, cat));
         releaseKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.stickykeys.release",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, cat));
 
@@ -38,6 +40,12 @@ public class StickyKeysClient implements ClientModInitializer {
     }
 
     private static void handleKeys(MinecraftClient client) {
+        // 1.0 had the on/off key unbound and Minecraft remembers that: give it Y once
+        if (!Sticky.toggleKeyDefaulted) {
+            Sticky.toggleKeyDefaulted = true;
+            if (toggleKey.isUnbound()) setToggleKey(client, InputUtil.Type.KEYSYM.createFromCode(GLFW.GLFW_KEY_Y));
+            Sticky.save();
+        }
         while (menuKey.wasPressed()) {
             if (client.currentScreen == null) client.setScreen(new StickyScreen(null));
         }
@@ -50,6 +58,13 @@ public class StickyKeysClient implements ClientModInitializer {
             }
         }
         while (releaseKey.wasPressed()) Sticky.releaseAll();
+    }
+
+    /** Rebinds the on/off key and saves it to Minecraft's options. */
+    public static void setToggleKey(MinecraftClient client, InputUtil.Key key) {
+        toggleKey.setBoundKey(key);
+        KeyBinding.updateKeysByCode();
+        client.options.write();
     }
 
     /** Small "held" chips for every latched key. */

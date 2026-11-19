@@ -9,7 +9,9 @@ Open **Mod Menu > Sticky Keys > settings button** (you need [Mod Menu](https://m
 
 * Every key binding is listed by category with its current key. Click **normal / STICKY** to switch it.
   Search by name or key at the top. A green dot shows keys that are held right now.
-* **Sticky Keys** ON/OFF: everything at once (also bindable to a key).
+* **On / off key** (default **Y**): turns every sticky key on and off at once, with a message above the hotbar.
+  Rebind it right in the Sticky Keys screen (click the key button, press a key; Esc cancels, Backspace unbinds) or in Controls.
+* **Sticky Keys** ON/OFF button: the same switch.
 * **Release in menus**: let go of held keys when you open the inventory, chat, etc. (default ON).
 * **Held keys HUD**: shows little green chips for the keys being held; choose where.
 * **Let go of all** (also bindable to a key) and **Make none sticky**.
