@@ -3,10 +3,15 @@
   "id": "stickykeys",
   "version": "${version}",
   "name": "Sticky Keys",
-  "description": "Make any key binding sticky.",
+  "description": "Make any key or mouse button sticky: press it once and it stays held, press it again to let go. Pick which ones in the settings (Mod Menu).",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "entrypoints": { "client": ["com.example.stickykeys.StickyKeysClient"] },
-  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
+  "mixins": ["stickykeys.mixins.json"],
+  "entrypoints": {
+    "client": ["com.example.stickykeys.StickyKeysClient"],
+    "modmenu": ["com.example.stickykeys.ModMenuIntegration"]
+  },
+  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" },
+  "suggests": { "modmenu": "*" }
 }

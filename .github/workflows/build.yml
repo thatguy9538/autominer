@@ -38,14 +38,3 @@ jobs:
           base64 -w0 "$J" | fold -w 2000 | sed 's/^/JARB64 /'
 
 
-      - name: API dump
-        if: always()
-        run: |
-          set +e
-          MC=$(find ~/.gradle -name "minecraft-merged-1.21.10-net.fabricmc.yarn*.jar" | grep -v sources | head -1)
-          MM=$(find ~/.gradle -name "modmenu-16.0.1*.jar" | grep -v sources | head -1)
-          FK=$(find ~/.gradle -name "fabric-key-binding-api-v1*.jar" | grep -v sources | head -1)
-          echo "APIMM $MM"
-          for c in net.minecraft.client.option.KeyBinding net.minecraft.client.util.InputUtil\$Key com.terraformersmc.modmenu.api.ModMenuApi com.terraformersmc.modmenu.api.ConfigScreenFactory net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper net.minecraft.client.gui.widget.TextFieldWidget net.minecraft.client.gui.screen.Screen; do
-            javap -cp "$MC:$MM:$FK" "$c" 2>&1 | grep -iE "class |interface |static|public .*\(|Error" | grep -viE "lambda|synthetic" | sed "s|^|APIX |"
-          done
