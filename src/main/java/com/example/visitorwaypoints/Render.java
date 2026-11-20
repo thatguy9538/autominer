@@ -68,7 +68,17 @@ public final class Render {
                 new Vec3d(x0, y0, z0), new Vec3d(x1, y0, z0), new Vec3d(x1, y0, z1), new Vec3d(x0, y0, z1),
                 new Vec3d(x0, y1, z0), new Vec3d(x1, y1, z0), new Vec3d(x1, y1, z1), new Vec3d(x0, y1, z1)};
         int[][] edges = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
-        for (int[] e : edges) line3d(ctx, v[e[0]], v[e[1]], color);
+        // far away the real box shrinks to a dot: then draw a fixed-size box instead, so it shows anywhere
+        double[] feet = project(new Vec3d(p.x, p.y, p.z)), head = project(new Vec3d(p.x, p.y + 1.9, p.z));
+        boolean tiny = feet != null && head != null && Math.abs(feet[1] - head[1]) < MIN_BOX_H;
+        if (feet != null && head != null && tiny) {
+            int cx = (int) ((feet[0] + head[0]) / 2), cy = (int) ((feet[1] + head[1]) / 2);
+            int hw = MIN_BOX_H / 3, hh = MIN_BOX_H / 2;
+            outline(ctx, cx - hw, cy - hh, cx + hw, cy + hh, color);
+            outline(ctx, cx - hw + 1, cy - hh + 1, cx + hw - 1, cy + hh - 1, (color & 0x00FFFFFF) | 0x60000000);
+        } else {
+            for (int[] e : edges) line3d(ctx, v[e[0]], v[e[1]], color);
+        }
 
         if (nearest && VisitorWaypointsClient.tracers) {
             Vec3d view = toView(new Vec3d(p.x, p.y + 1, p.z));
@@ -84,7 +94,13 @@ public final class Render {
         }
 
         double[] top = project(new Vec3d(p.x, p.y + 2.4, p.z));
-        if (top == null) return;
+        if (tiny && feet != null && head != null) {
+            top = new double[]{(feet[0] + head[0]) / 2, (feet[1] + head[1]) / 2 - MIN_BOX_H / 2.0 - 3};
+        }
+        if (top == null || top[0] < 0 || top[0] > width || top[1] < 0 || top[1] > height + 40) {
+            edgeMarker(ctx, tr, mc, s, color);         // off screen or behind you: pin it to the screen edge
+            return;
+        }
         double dist = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).distanceTo(p);
         Visitors.Visitor vis = s.visitor();
 
@@ -123,6 +139,44 @@ public final class Render {
         for (int i = 0; i < lines.size(); i++) {
             ctx.drawCenteredTextWithShadow(tr, lines.get(i), tx, tagTop + 3 + i * 10, colors.get(i));
         }
+    }
+
+    /** Smallest box height on screen (GUI pixels), so far-away waypoints stay visible. */
+    private static final int MIN_BOX_H = 18;
+
+    private static void outline(DrawContext ctx, int x0, int y0, int x1, int y1, int color) {
+        ctx.fill(x0, y0, x1, y0 + 1, color);
+        ctx.fill(x0, y1 - 1, x1, y1, color);
+        ctx.fill(x0, y0, x0 + 1, y1, color);
+        ctx.fill(x1 - 1, y0, x1, y1, color);
+    }
+
+    /** A small box + name on the edge of the screen, in the direction of a waypoint you can't see. */
+    private static void edgeMarker(DrawContext ctx, TextRenderer tr, MinecraftClient mc, VisitorWaypointsClient.Shown s, int color) {
+        Vec3d view = toView(new Vec3d(s.pos().x, s.pos().y + 1, s.pos().z));
+        double cx = width / 2.0, cy = height / 2.0;
+        double dx, dy;
+        if (view.z > NEAR) {
+            double[] sp = viewToScreen(view);
+            dx = sp[0] - cx;
+            dy = sp[1] - cy;
+        } else {
+            dx = view.x;
+            dy = -view.y;
+            if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) dy = 1;   // straight behind: show at the bottom
+        }
+        double margin = 14;
+        double sx = (cx - margin) / Math.max(1e-6, Math.abs(dx)), sy = (cy - margin) / Math.max(1e-6, Math.abs(dy));
+        double k = Math.min(sx, sy);
+        int x = (int) (cx + dx * k), y = (int) (cy + dy * k);
+        outline(ctx, x - 4, y - 6, x + 4, y + 6, color);
+        double dist = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).distanceTo(s.pos());
+        String label = s.visitor().name() + " " + String.format("%.0fm", dist);
+        int lw = tr.getWidth(label);
+        int lx = Math.max(2, Math.min(width - lw - 2, x - lw / 2));
+        int ly = y > height / 2 ? y - 18 : y + 8;
+        ctx.fill(lx - 2, ly - 1, lx + lw + 2, ly + 9, 0x90000000);
+        ctx.drawTextWithShadow(tr, label, lx, ly, color);
     }
 
     // ------------------------------------------------------------------ projection (screen-space, through walls)
