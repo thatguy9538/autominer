@@ -117,11 +117,11 @@ public final class Render {
         for (String l : lines) w = Math.max(w, tr.getWidth(l));
         w += 8;
         int h = lines.size() * 10 + 4;
-        int y0 = ty - h;
-        ctx.fill(tx - w / 2, y0, tx + w / 2, ty, 0xA0000000);
-        ctx.fill(tx - w / 2, y0, tx + w / 2, y0 + 1, color);
+        int tagTop = ty - h;
+        ctx.fill(tx - w / 2, tagTop, tx + w / 2, ty, 0xA0000000);
+        ctx.fill(tx - w / 2, tagTop, tx + w / 2, tagTop + 1, color);
         for (int i = 0; i < lines.size(); i++) {
-            ctx.drawCenteredTextWithShadow(tr, lines.get(i), tx, y0 + 3 + i * 10, colors.get(i));
+            ctx.drawCenteredTextWithShadow(tr, lines.get(i), tx, tagTop + 3 + i * 10, colors.get(i));
         }
     }
 
