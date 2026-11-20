@@ -111,14 +111,24 @@ public final class Render {
         colors.add(color);
         lines.add("How to get as a visitor:");
         colors.add(0xFFFFDD55);
-        if (vis.gardenLevel() > 1) {
+        Visitors.State vst = Visitors.STATE.get(vis.name());
+        if (vst != null && vst.hasLogbookReqs()) {
+            // straight from your Visitor's Logbook, with its own ticks and crosses
+            for (Visitors.Req r : vst.reqs) {
+                String mark = Boolean.TRUE.equals(r.met) ? "\u2714 " : Boolean.FALSE.equals(r.met) ? "\u2716 " : "\u2022 ";
+                lines.add(mark + r.text);
+                colors.add(Boolean.TRUE.equals(r.met) ? 0xFF55FF55 : Boolean.FALSE.equals(r.met) ? 0xFFFF5555 : 0xFFFFFFFF);
+            }
+            lines.add("(from your logbook)");
+            colors.add(0xFF888888);
+        } else if (vis.gardenLevel() > 1) {
             int lvl = VisitorWaypointsClient.gardenLevel;
             boolean ok = VisitorWaypointsClient.levelOk(vis, Visitors.STATE.get(vis.name()));
             lines.add((ok ? "\u2714 " : "\u2716 ") + "Garden Level " + vis.gardenLevel()
                     + (lvl >= 0 ? "  (you: " + lvl + ")" : ""));
             colors.add(ok ? 0xFF55FF55 : 0xFFFF5555);
         }
-        for (String step : vis.requirement().split(";")) {
+        for (String step : (vst != null && vst.hasLogbookReqs()) ? new String[0] : vis.requirement().split(";")) {
             step = step.trim();
             if (step.isEmpty()) continue;
             boolean note = step.toLowerCase(java.util.Locale.ROOT).startsWith("only visits");

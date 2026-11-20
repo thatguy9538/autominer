@@ -80,6 +80,7 @@ public final class Logbook {
             int visits = -1;
             boolean anyNo = false, anyYes = false, anyReqLine = false;
             Boolean levelOk = null;
+            List<Visitors.Req> reqs = readRequirements(lore);
             for (String l : lore) {
                 Matcher m = VISITS.matcher(l);
                 if (m.find() && visits < 0) {
@@ -98,8 +99,11 @@ public final class Logbook {
             }
             st8.visits = visits;
             st8.levelOk = levelOk;
+            st8.reqs = reqs;
             // unlocked = it has visited before, or the logbook ticks every requirement
-            st8.unlocked = visits > 0 || (anyReqLine && anyYes && !anyNo);
+            boolean allMet = !reqs.isEmpty() && reqs.stream().allMatch(r -> !Boolean.FALSE.equals(r.met))
+                    && reqs.stream().anyMatch(r -> Boolean.TRUE.equals(r.met));
+            st8.unlocked = visits > 0 || allMet || (reqs.isEmpty() && anyReqLine && anyYes && !anyNo);
             if (st8.unlocked) st8.talked = false;
             read++;
             if (!st8.unlocked) locked++;
@@ -111,6 +115,47 @@ public final class Logbook {
             if (unknownNames > 0) msg += " (" + unknownNames + " hidden ??? entries I can't identify)";
             VisitorWaypointsClient.say(client, msg);
         }
+    }
+
+    private static final Pattern REQ_HEADER = Pattern.compile("requirement", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SECTION_END = Pattern.compile(
+            "(times visited|visits|offers? accepted|accepted|click|rarity|sort|filter|wanted|reward|request)",
+            Pattern.CASE_INSENSITIVE);
+    private static final String MARKS = "✔✓☑✖✗✘❌⨯";
+
+    /**
+     * The requirement lines from a logbook item: everything under a "Requirement(s)" heading (until the
+     * next section), plus any other line with a ✔/✖ mark. Each keeps its mark as met / not met.
+     */
+    static List<Visitors.Req> readRequirements(List<String> lore) {
+        List<Visitors.Req> out = new ArrayList<>();
+        boolean inSection = false;
+        for (String l : lore) {
+            String t = l.trim();
+            boolean marked = has(t, YES) || has(t, NO);
+            if (REQ_HEADER.matcher(t).find() && !marked) {
+                inSection = true;
+                // "Requirement: Talk to the Alchemist" on one line
+                int c = t.indexOf(':');
+                String rest = c >= 0 ? t.substring(c + 1).trim() : "";
+                if (!rest.isEmpty()) out.add(req(rest));
+                continue;
+            }
+            if (inSection && !marked && (SECTION_END.matcher(t).find() || t.endsWith(":"))) inSection = false;
+            if (inSection || marked) {
+                if (VISITS.matcher(t).find()) continue;
+                out.add(req(t));
+            }
+        }
+        return out;
+    }
+
+    private static Visitors.Req req(String line) {
+        Boolean met = has(line, NO) ? Boolean.FALSE : has(line, YES) ? Boolean.TRUE : null;
+        StringBuilder sb = new StringBuilder();
+        for (char ch : line.toCharArray()) if (MARKS.indexOf(ch) < 0) sb.append(ch);
+        String text = sb.toString().replaceAll("^[\\s\u2022\u25B8>-]+", "").trim();
+        return new Visitors.Req(text, met);
     }
 
     private static boolean has(String s, String chars) {

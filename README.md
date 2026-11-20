@@ -6,6 +6,12 @@ Hub's Farm). It only shows:
 * visitors your **Garden level** allows (the logbook's own tick/cross if it shows one, otherwise your level vs the wiki), and
 * waypoints on the **island you're on** (from the tab list "Area:", or the sidebar zone).
 
+**Requirements from your logbook:** while you flip through the Visitor's Logbook the mod also copies each
+visitor's unlock requirements as the logbook lists them (lines under "Requirement(s)" and any line with a tick
+or cross). Name tags and `/vw list` show those, ticked green or crossed red, with "(from your logbook)". The
+wiki's text is only used for visitors the logbook hasn't shown requirements for. A visitor counts as unlocked
+when it has visited, or when the logbook ticks every requirement.
+
 **Island search:** every second the mod reads the nametags of all NPCs your game has loaded and remembers where
 each visitor's NPC really stands, per island. Those spots replace the wiki's (labelled "spotted here" instead of
 "wiki: zone"), and visitors the wiki has no spot for get a waypoint once you've walked near them. The server only

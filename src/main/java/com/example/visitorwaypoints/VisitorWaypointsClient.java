@@ -149,7 +149,10 @@ public class VisitorWaypointsClient implements ClientModInitializer {
         List<Shown> out = new ArrayList<>();
         if (!enabled || Where.island == null) return out;
         for (Visitors.Visitor v : Visitors.ALL) {
-            if (!Scanner.needsTrip(v)) continue;
+            Visitors.State pre = Visitors.STATE.get(v.name());
+            boolean logbookSaysLocked = pre != null && pre.hasLogbookReqs()
+                    && pre.reqs.stream().anyMatch(r -> Boolean.FALSE.equals(r.met));
+            if (!Scanner.needsTrip(v) && !logbookSaysLocked) continue;
             Visitors.State st = Visitors.STATE.get(v.name());
             if (st == null || !st.seen || st.unlocked || st.talked) continue;
             if (!levelOk(v, st)) continue;
@@ -231,8 +234,18 @@ public class VisitorWaypointsClient implements ClientModInitializer {
         say(client, "To unlock on " + Where.island + ":");
         for (Shown s : shown) {
             Visitors.Visitor v = s.visitor();
+            Visitors.State st = Visitors.STATE.get(v.name());
+            String how = v.requirement();
+            if (st != null && st.hasLogbookReqs()) {
+                StringBuilder b = new StringBuilder();
+                for (Visitors.Req r : st.reqs) {
+                    if (b.length() > 0) b.append("; ");
+                    b.append(Boolean.TRUE.equals(r.met) ? "\u2714 " : Boolean.FALSE.equals(r.met) ? "\u2716 " : "").append(r.text);
+                }
+                how = b.toString();
+            }
             client.player.sendMessage(Text.literal(" - " + v.name()).formatted(Formatting.YELLOW)
-                    .append(Text.literal("  " + v.requirement() + "  @ " + (int) Math.floor(s.pos().x) + ", "
+                    .append(Text.literal("  " + how + "  @ " + (int) Math.floor(s.pos().x) + ", "
                             + (int) Math.floor(s.pos().y) + ", " + (int) Math.floor(s.pos().z)
                             + (s.spotted() ? " (spotted)" : " (wiki: " + s.zone() + ")"))
                             .formatted(Formatting.GRAY)), false);

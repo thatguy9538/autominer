@@ -39,6 +39,27 @@ public final class Visitors {
         public int visits = -1;       // -1 = the logbook didn't say
         public Boolean levelOk;       // the logbook's Garden level line: true ✔, false ✖, null = no line
         public boolean talked;        // you talked to the NPC since (chat "[NPC] Name:")
+        /** The unlock requirements as the logbook lists them (empty = it didn't show any). */
+        public List<Req> reqs = new ArrayList<>();
+
+        /** Requirement text to show: the logbook's if we have it, else the wiki's. */
+        public boolean hasLogbookReqs() {
+            return reqs != null && !reqs.isEmpty();
+        }
+    }
+
+    /** One requirement line from the logbook; met = ✔ true, ✖ false, null = no mark. */
+    public static final class Req {
+        public String text;
+        public Boolean met;
+
+        public Req() {
+        }
+
+        public Req(String text, Boolean met) {
+            this.text = text;
+            this.met = met;
+        }
     }
 
     public static final List<Visitor> ALL = new ArrayList<>();
