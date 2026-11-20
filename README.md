@@ -12,7 +12,7 @@ each visitor's NPC really stands, per island. Those spots replace the wiki's (la
 sends NPCs near you, so the island fills in as you explore. Spots seen in the Garden are ignored (visitors show up
 there too). `/vw forgetspots` clears them.
 
-Waypoints are boxes with the visitor's name, what to do and the distance, visible through walls, with a tracer
+Waypoints are boxes with a name tag: the visitor's name, rarity and distance, then **How to get as a visitor** (the Garden level, ticked or crossed against yours, and each requirement on its own line), visible through walls, with a tracer
 line to the nearest one. When chat shows `[NPC] Name:` for a "Talk to" visitor, that waypoint disappears.
 
 Commands: `/vw` (status), `/vw list`, `/vw toggle`, `/vw tracer`, `/vw level <n>`, `/vw forgetspots`, `/vw reset`.

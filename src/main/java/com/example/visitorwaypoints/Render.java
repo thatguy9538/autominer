@@ -7,6 +7,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -85,14 +86,43 @@ public final class Render {
         double[] top = project(new Vec3d(p.x, p.y + 2.4, p.z));
         if (top == null) return;
         double dist = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).distanceTo(p);
-        String name = s.visitor().name() + "  " + String.format("%.0fm", dist);
-        String where = s.spotted() ? "spotted here" : "wiki: " + s.zone();
-        String what = s.visitor().requirement().isEmpty() ? where : s.visitor().requirement() + "  (" + where + ")";
+        Visitors.Visitor vis = s.visitor();
+
+        // name tag: name + rarity + distance, then "How to get them as a visitor", one step per line
+        List<String> lines = new ArrayList<>();
+        List<Integer> colors = new ArrayList<>();
+        lines.add(vis.name() + "  " + vis.rarity() + "  " + String.format("%.0fm", dist));
+        colors.add(color);
+        lines.add("How to get as a visitor:");
+        colors.add(0xFFFFDD55);
+        if (vis.gardenLevel() > 1) {
+            int lvl = VisitorWaypointsClient.gardenLevel;
+            boolean ok = VisitorWaypointsClient.levelOk(vis, Visitors.STATE.get(vis.name()));
+            lines.add((ok ? "\u2714 " : "\u2716 ") + "Garden Level " + vis.gardenLevel()
+                    + (lvl >= 0 ? "  (you: " + lvl + ")" : ""));
+            colors.add(ok ? 0xFF55FF55 : 0xFFFF5555);
+        }
+        for (String step : vis.requirement().split(";")) {
+            step = step.trim();
+            if (step.isEmpty()) continue;
+            boolean note = step.toLowerCase(java.util.Locale.ROOT).startsWith("only visits");
+            lines.add((note ? "" : "\u2022 ") + step);
+            colors.add(note ? 0xFFAAAAAA : 0xFFFFFFFF);
+        }
+        lines.add(s.spotted() ? "spotted here" : "wiki spot: " + s.zone());
+        colors.add(0xFF888888);
+
         int tx = (int) top[0], ty = (int) top[1];
-        int w = Math.max(tr.getWidth(name), tr.getWidth(what)) + 6;
-        ctx.fill(tx - w / 2, ty - 12, tx + w / 2, ty + 10, 0x90000000);
-        ctx.drawCenteredTextWithShadow(tr, name, tx, ty - 10, color);
-        ctx.drawCenteredTextWithShadow(tr, what, tx, ty, 0xFFDDDDDD);
+        int w = 0;
+        for (String l : lines) w = Math.max(w, tr.getWidth(l));
+        w += 8;
+        int h = lines.size() * 10 + 4;
+        int y0 = ty - h;
+        ctx.fill(tx - w / 2, y0, tx + w / 2, ty, 0xA0000000);
+        ctx.fill(tx - w / 2, y0, tx + w / 2, y0 + 1, color);
+        for (int i = 0; i < lines.size(); i++) {
+            ctx.drawCenteredTextWithShadow(tr, lines.get(i), tx, y0 + 3 + i * 10, colors.get(i));
+        }
     }
 
     // ------------------------------------------------------------------ projection (screen-space, through walls)
