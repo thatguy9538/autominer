@@ -1,0 +1,2053 @@
+{
+ "source": "Hypixel SkyBlock Wiki (hypixelskyblock.minecraft.wiki): Garden Visitors/List and each NPC's page, read 2026-11-19",
+ "visitors": [
+  {
+   "name": "Alchemage",
+   "rarity": "RARE",
+   "gardenLevel": 8,
+   "requirement": "Alchemage Quest",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Scarleton Bank",
+     "x": -86,
+     "y": 118,
+     "z": -771
+    }
+   ]
+  },
+  {
+   "name": "Alchemist",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 10,
+   "requirement": "Talk to the Alchemist",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farm",
+     "x": 80.5,
+     "y": 72,
+     "z": -90.5
+    }
+   ]
+  },
+  {
+   "name": "An",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 10,
+   "requirement": "Talk to An",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Dragontail",
+     "x": -621.5,
+     "y": 108,
+     "z": -741.5
+    }
+   ]
+  },
+  {
+   "name": "Andrew",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Anita",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 2,
+   "requirement": "Talk to Anita",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farmhouse",
+     "x": 53.5,
+     "y": 73,
+     "z": -128.5
+    }
+   ]
+  },
+  {
+   "name": "Archaeologist",
+   "rarity": "RARE",
+   "gardenLevel": 10,
+   "requirement": "Relic Hunting Quest",
+   "waypoints": [
+    {
+     "island": "Spider's Den",
+     "zone": "Archaeologist's Camp",
+     "x": -360.5,
+     "y": 111,
+     "z": -290
+    }
+   ]
+  },
+  {
+   "name": "Arthur",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Arthur",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farm",
+     "x": 53.5,
+     "y": 72,
+     "z": -111.5
+    }
+   ]
+  },
+  {
+   "name": "Baker",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 1,
+   "requirement": "Mayor Finnegan's Blooming Business perk; Export Fine Flour",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Village",
+     "x": -37.5,
+     "y": 69,
+     "z": 16.5
+    }
+   ]
+  },
+  {
+   "name": "Banker Broadjaw",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 7,
+   "requirement": "Talk to Banker Broadjaw",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Village",
+     "x": 13.5,
+     "y": 201,
+     "z": -148.5
+    }
+   ]
+  },
+  {
+   "name": "Bartender",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to the Bartender",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Combat Settlement",
+     "x": -40.5,
+     "y": 69,
+     "z": -72.5
+    },
+    {
+     "island": "Hub",
+     "zone": "Tavern",
+     "x": -83.5,
+     "y": 74,
+     "z": -135.5
+    }
+   ]
+  },
+  {
+   "name": "Bednom",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 8,
+   "requirement": "Talk to Bednom",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Village",
+     "x": -30,
+     "y": 213.843,
+     "z": -89
+    }
+   ]
+  },
+  {
+   "name": "Beth",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 1,
+   "requirement": "Talk to Beth",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Desert Settlement",
+     "x": 163.5,
+     "y": 77,
+     "z": -359
+    },
+    {
+     "island": "The Farming Islands",
+     "zone": "Underground Lab",
+     "x": 174.5,
+     "y": 26,
+     "z": -477
+    },
+    {
+     "island": "The Farming Islands",
+     "zone": "Underground Lab",
+     "x": 173.875,
+     "y": 28,
+     "z": -498.5
+    },
+    {
+     "island": "The Farming Islands",
+     "zone": "Underground Lab",
+     "x": 190.5,
+     "y": 22,
+     "z": -499.5
+    }
+   ]
+  },
+  {
+   "name": "Bruuh",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 10,
+   "requirement": "Pay Bruuh",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Dragontail",
+     "x": -635.5,
+     "y": 124,
+     "z": -688.5
+    }
+   ]
+  },
+  {
+   "name": "Carpenter",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Carrot King Avatar",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 0,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Chantelle",
+   "rarity": "RARE",
+   "gardenLevel": 11,
+   "requirement": "Talk to Chantelle",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Carnival",
+     "x": -83.5,
+     "y": 71,
+     "z": 11.5
+    }
+   ]
+  },
+  {
+   "name": "Chief Scorn",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 13,
+   "requirement": "Reach 12,000 Barbarian Reputation",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Chief's Hut",
+     "x": -580.5,
+     "y": 115.5,
+     "z": -687.5
+    }
+   ]
+  },
+  {
+   "name": "Chunk",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 7,
+   "requirement": "Talk to Chunk",
+   "waypoints": [
+    {
+     "island": "Crystal Hollows",
+     "zone": "Precursor Remnants",
+     "x": 797.5,
+     "y": 128.5,
+     "z": 708.5
+    }
+   ]
+  },
+  {
+   "name": "Clerk Seraphine",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 5,
+   "requirement": "Talk to Clerk Seraphine",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Community Center",
+     "x": -1.5,
+     "y": 79,
+     "z": 10.5
+    },
+    {
+     "island": "Hub",
+     "zone": "Election Room",
+     "x": 4.5,
+     "y": 49,
+     "z": 34.5
+    }
+   ]
+  },
+  {
+   "name": "Cold Enjoyer",
+   "rarity": "RARE",
+   "gardenLevel": 8,
+   "requirement": "Talk to Cold Enjoyer",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Base Camp",
+     "x": -15.25,
+     "y": 136.781,
+     "z": 217.25
+    }
+   ]
+  },
+  {
+   "name": "Combat Merchant",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 3,
+   "requirement": "Talk to the Combat Merchant",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Thaumaturgist",
+     "x": -49.5,
+     "y": 69,
+     "z": -66.5
+    }
+   ]
+  },
+  {
+   "name": "Dalbrek",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to Dalbrek",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Grand Library",
+     "x": 191,
+     "y": 216,
+     "z": 154
+    }
+   ]
+  },
+  {
+   "name": "Duke",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Dulin",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Talk to Dulin",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Hanging Court",
+     "x": 80.25,
+     "y": 187.3,
+     "z": 127.5
+    },
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Base Camp",
+     "x": 15.5,
+     "y": 128,
+     "z": 206.5
+    }
+   ]
+  },
+  {
+   "name": "Duncan",
+   "rarity": "RARE",
+   "gardenLevel": 8,
+   "requirement": "Talk to Duncan",
+   "waypoints": []
+  },
+  {
+   "name": "Dusk",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 6,
+   "requirement": "Talk to Dusk",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Blacksmith (Zone)",
+     "x": 20.5,
+     "y": 63,
+     "z": -135.5
+    }
+   ]
+  },
+  {
+   "name": "Elle",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 10,
+   "requirement": "Kuudra Basic Tier Completion",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Stronghold",
+     "x": -364.5,
+     "y": 80,
+     "z": -476.5
+    },
+    {
+     "island": "Crimson Isle",
+     "zone": "Stronghold",
+     "x": -360.5,
+     "y": 86,
+     "z": -517.5
+    },
+    {
+     "island": "Crimson Isle",
+     "zone": "Dragontail",
+     "x": -563.5,
+     "y": 98,
+     "z": -681.5
+    },
+    {
+     "island": "Crimson Isle",
+     "zone": "Dragontail",
+     "x": -595.5,
+     "y": 108,
+     "z": -671.5
+    }
+   ]
+  },
+  {
+   "name": "Emissary Carlton",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 2,
+   "requirement": "Talk to Emissary Carlton",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Rampart's Quarry",
+     "x": -72.5,
+     "y": 153,
+     "z": -10.5
+    }
+   ]
+  },
+  {
+   "name": "Emissary Ceanna",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 3,
+   "requirement": "Talk to Emissary Ceanna",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Cliffside Veins",
+     "x": 42.5,
+     "y": 134.5,
+     "z": 22.5
+    }
+   ]
+  },
+  {
+   "name": "Emissary Fraiser",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 6,
+   "requirement": "Talk to Emissary Fraiser",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Upper Mines",
+     "x": -132.5,
+     "y": 174,
+     "z": -50.5
+    }
+   ]
+  },
+  {
+   "name": "Emissary Sisko",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Emissary Sisko",
+   "waypoints": [
+    {
+     "island": "Crystal Hollows",
+     "zone": "Crystal Nucleus",
+     "x": 495.5,
+     "y": 106,
+     "z": 556.5
+    }
+   ]
+  },
+  {
+   "name": "Emissary Wilson",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 2,
+   "requirement": "Talk to Emissary Wilson",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Royal Mines",
+     "x": 171.5,
+     "y": 150,
+     "z": 31.5
+    }
+   ]
+  },
+  {
+   "name": "Erihann",
+   "rarity": "RARE",
+   "gardenLevel": 11,
+   "requirement": "Talk to Erihann",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wizard Tower",
+     "x": 42.5,
+     "y": 97,
+     "z": 93.5
+    }
+   ]
+  },
+  {
+   "name": "Fann",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Talk to Fann",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Pet Care",
+     "x": 9.5,
+     "y": 73,
+     "z": -62.5
+    }
+   ]
+  },
+  {
+   "name": "Farm Merchant",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Farm Merchant",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farm",
+     "x": 63.5,
+     "y": 72,
+     "z": -113.5
+    }
+   ]
+  },
+  {
+   "name": "Farmer Jon",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Farmer Jon",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Mushroom Desert",
+     "x": 167.5,
+     "y": 91,
+     "z": -598.5
+    }
+   ]
+  },
+  {
+   "name": "Farmhand",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 3,
+   "requirement": "Talk to the Farmhand",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "The Barn",
+     "x": 144,
+     "y": 73,
+     "z": -240
+    }
+   ]
+  },
+  {
+   "name": "Fear Mongerer",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 4,
+   "requirement": "Talk to Fear Mongerer",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Village",
+     "x": -32.5,
+     "y": 69,
+     "z": 6.5
+    }
+   ]
+  },
+  {
+   "name": "Felix",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Fisherman Gerald",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 2,
+   "requirement": "Fishing V; Talk to Gerald",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Fishing Outpost",
+     "x": 118.5,
+     "y": 71,
+     "z": -32.5
+    }
+   ]
+  },
+  {
+   "name": "Fragilis",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Talk to Fragilis",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Mines",
+     "x": 88,
+     "y": 199,
+     "z": -108
+    }
+   ]
+  },
+  {
+   "name": "Friendly Hiker",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Friendly Hiker",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Desert Settlement",
+     "x": 181.5,
+     "y": 77,
+     "z": -381
+    }
+   ]
+  },
+  {
+   "name": "Frozen Alex",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Unlock 5 Perks from the Ice Essence Shop; Only visits during the Season of Jerry",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Jerry Pond",
+     "x": -43,
+     "y": 84,
+     "z": -1
+    }
+   ]
+  },
+  {
+   "name": "Gary",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Gary",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Gary's Shack",
+     "x": 53.5,
+     "y": 103,
+     "z": 56.5
+    }
+   ]
+  },
+  {
+   "name": "Gemma",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Unlock 5 Perks from the Diamond Essence Shop",
+   "waypoints": [
+    {
+     "island": "Crystal Hollows",
+     "zone": "Crystal Nucleus",
+     "x": 475.5,
+     "y": 106,
+     "z": 513.5
+    }
+   ]
+  },
+  {
+   "name": "Geonathan Greatforge",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Geonathan Greatforge",
+   "waypoints": [
+    {
+     "island": "Crystal Hollows",
+     "zone": "Crystal Nucleus",
+     "x": 530.5,
+     "y": 106,
+     "z": 556.5
+    }
+   ]
+  },
+  {
+   "name": "Ghost of Armorsmith",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Talk to Weaponsmith; Only visits during Spooky Festival",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Combat Settlement",
+     "x": -59.5,
+     "y": 69,
+     "z": -83.5
+    }
+   ]
+  },
+  {
+   "name": "Ghost of Baking Specialist",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 7,
+   "requirement": "Talk to Baker; Only visits during Spooky Festival",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Communal Stew",
+     "x": 81.5,
+     "y": 72,
+     "z": -84.25
+    }
+   ]
+  },
+  {
+   "name": "Ghost of Game Agent",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Visit Jerry's Workshop; Only visits during Spooky Festival",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wizard Tower",
+     "x": 44,
+     "y": 87,
+     "z": 98
+    }
+   ]
+  },
+  {
+   "name": "Ghost of Goon",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Visit Dante's Memorial; Only visits during Spooky Festival",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Graveyard",
+     "x": -85.5,
+     "y": 76,
+     "z": -152.5
+    }
+   ]
+  },
+  {
+   "name": "Ghost of Warren",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Participate in Stonks Auction; Only visits during Spooky Festival",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Bazaar Alley",
+     "x": -40.5,
+     "y": 72,
+     "z": -24.5
+    }
+   ]
+  },
+  {
+   "name": "Gimley",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Gimley",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Tavern",
+     "x": 29.5,
+     "y": 202.281,
+     "z": -151.5
+    }
+   ]
+  },
+  {
+   "name": "Gold Forger",
+   "rarity": "RARE",
+   "gardenLevel": 2,
+   "requirement": "Talk to Gold Forger",
+   "waypoints": [
+    {
+     "island": "Gold Mine",
+     "zone": "Gold Mine",
+     "x": -27.5,
+     "y": 74,
+     "z": -294.5
+    }
+   ]
+  },
+  {
+   "name": "Grandma Wolf",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to Grandma Wolf",
+   "waypoints": [
+    {
+     "island": "Spider's Den",
+     "zone": "Grandma's House",
+     "x": -281.5,
+     "y": 122,
+     "z": -190.5
+    }
+   ]
+  },
+  {
+   "name": "Guy",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 9,
+   "requirement": "Talk to Guy",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Village",
+     "x": 51.5,
+     "y": 78,
+     "z": 20.5
+    }
+   ]
+  },
+  {
+   "name": "Gwendolyn",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to Gwendolyn",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Mines",
+     "x": 88.5,
+     "y": 198,
+     "z": -98.5
+    }
+   ]
+  },
+  {
+   "name": "Hendrik",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Hendrik; Only visits during the Season of Jerry",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Hot Springs",
+     "x": 16.5,
+     "y": 62,
+     "z": -30.5
+    }
+   ]
+  },
+  {
+   "name": "Hoppity",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 8,
+   "requirement": "Talk to Hoppity; Chocolate Factory III; Only visits during the Hoppity's Hunt",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Village",
+     "x": 56.5,
+     "y": 70,
+     "z": -2.5
+    }
+   ]
+  },
+  {
+   "name": "Hornum",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Hornum",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Tavern",
+     "x": 35.5,
+     "y": 202.281,
+     "z": -148.5
+    }
+   ]
+  },
+  {
+   "name": "Hungry Hiker",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Save this Hiker",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Mushroom Gorge",
+     "x": 269.5,
+     "y": 48,
+     "z": -480.5
+    },
+    {
+     "island": "The Farming Islands",
+     "zone": "Desert Settlement",
+     "x": 148.5,
+     "y": 77,
+     "z": -374.5
+    }
+   ]
+  },
+  {
+   "name": "Iron Forger",
+   "rarity": "RARE",
+   "gardenLevel": 2,
+   "requirement": "Talk to Iron Forger",
+   "waypoints": [
+    {
+     "island": "Gold Mine",
+     "zone": "Gold Mine",
+     "x": -1.5,
+     "y": 75,
+     "z": -307.5
+    }
+   ]
+  },
+  {
+   "name": "Jack",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Jacob",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Jacob",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farmhouse",
+     "x": 46.5,
+     "y": 73,
+     "z": -128.5
+    }
+   ]
+  },
+  {
+   "name": "Jacobus",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 5,
+   "requirement": "Talk to Jacobus",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Thaumaturgist",
+     "x": -49.5,
+     "y": 70,
+     "z": -60.5
+    }
+   ]
+  },
+  {
+   "name": "Jamie",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Jeff",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Use the Garden Chip",
+   "waypoints": []
+  },
+  {
+   "name": "Jerry",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Jotraeline Greatforge",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Jotraeline Greatforge",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Forge Basin",
+     "x": -6.5,
+     "y": 145,
+     "z": -18.5
+    }
+   ]
+  },
+  {
+   "name": "Lazy Miner",
+   "rarity": "RARE",
+   "gardenLevel": 8,
+   "requirement": "Talk to the Lazy Miner",
+   "waypoints": [
+    {
+     "island": "Gold Mine",
+     "zone": "Gold Mine",
+     "x": -11.5,
+     "y": 78,
+     "z": -337.5
+    }
+   ]
+  },
+  {
+   "name": "Leo",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Liam",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Librarian",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 5,
+   "requirement": "Talk to the Librarian",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Library",
+     "x": -68.5,
+     "y": 70,
+     "z": -79.5
+    }
+   ]
+  },
+  {
+   "name": "Lift Operator",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Reach the Lapis Quarry",
+   "waypoints": [
+    {
+     "island": "Deep Caverns",
+     "zone": "Gunpowder Mines",
+     "x": 45.5,
+     "y": 150,
+     "z": 15.5
+    },
+    {
+     "island": "Deep Caverns",
+     "zone": "Lapis Quarry",
+     "x": 45.5,
+     "y": 121,
+     "z": 15.5
+    },
+    {
+     "island": "Deep Caverns",
+     "zone": "Pigmen's Den",
+     "x": 45.5,
+     "y": 101,
+     "z": 17.5
+    },
+    {
+     "island": "Deep Caverns",
+     "zone": "Slimehill",
+     "x": 45.5,
+     "y": 66,
+     "z": 15.5
+    }
+   ]
+  },
+  {
+   "name": "Ludleth",
+   "rarity": "MYTHIC",
+   "gardenLevel": 15,
+   "requirement": "Serve 100 unique visitors",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farm",
+     "x": 81.5,
+     "y": 59,
+     "z": -112.5
+    }
+   ]
+  },
+  {
+   "name": "Lumber Jack",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 9,
+   "requirement": "Give Lumber Jack Oak Logs",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Foraging Camp",
+     "x": -123.5,
+     "y": 73,
+     "z": -29.5
+    }
+   ]
+  },
+  {
+   "name": "Lumina",
+   "rarity": "RARE",
+   "gardenLevel": 4,
+   "requirement": "Talk to Lumina",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Mines",
+     "x": 77.5,
+     "y": 199,
+     "z": -110.5
+    }
+   ]
+  },
+  {
+   "name": "Lynn",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Madame Eleanor Q. Goldsworth III",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 2,
+   "requirement": "Talk to Madame Eleanor Q. Goldsworth III",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Museum",
+     "x": 33.5,
+     "y": 73,
+     "z": 11.5
+    }
+   ]
+  },
+  {
+   "name": "Maeve",
+   "rarity": "MYTHIC",
+   "gardenLevel": 12,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Marco",
+   "rarity": "RARE",
+   "gardenLevel": 2,
+   "requirement": "Marco the Artist Quest",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Flower House",
+     "x": 90.5,
+     "y": 76,
+     "z": 3.5
+    },
+    {
+     "island": "Hub",
+     "zone": "Canvas Room",
+     "x": 59.5,
+     "y": 22,
+     "z": 68.6
+    }
+   ]
+  },
+  {
+   "name": "Marigold",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Unlock 5 Perks from the Gold Essence Shop",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Royal Mines",
+     "x": 181.5,
+     "y": 150,
+     "z": 60.5
+    }
+   ]
+  },
+  {
+   "name": "Mason",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Mason",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Desert Settlement",
+     "x": 177.5,
+     "y": 77,
+     "z": -356
+    }
+   ]
+  },
+  {
+   "name": "Master Tactician Funk",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Master Tactician Funk",
+   "waypoints": [
+    {
+     "island": "The Park",
+     "zone": "Savanna Woodland",
+     "x": -452.5,
+     "y": 110,
+     "z": 29.5
+    }
+   ]
+  },
+  {
+   "name": "Mayor Aatrox",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Cole",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Diana",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Diaz",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Finnegan",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Foxy",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Marina",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Mayor Paul",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 3,
+   "requirement": "Only visits when elected as Mayor of SkyBlock!",
+   "waypoints": []
+  },
+  {
+   "name": "Moby",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Moby",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Glowing Mushroom Cave",
+     "x": 206,
+     "y": 43,
+     "z": -500
+    }
+   ]
+  },
+  {
+   "name": "Odawa",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Odawa",
+   "waypoints": []
+  },
+  {
+   "name": "Old Man Garry",
+   "rarity": "RARE",
+   "gardenLevel": 8,
+   "requirement": "Talk to Old Man Garry",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Village",
+     "x": 5.375,
+     "y": 200,
+     "z": -109.218
+    }
+   ]
+  },
+  {
+   "name": "Old Shaman Nyko",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 2,
+   "requirement": "Talk to Old Shaman Nyko",
+   "waypoints": [
+    {
+     "island": "The Park",
+     "zone": "Howling Cave",
+     "x": -370.5,
+     "y": 84,
+     "z": -64.5
+    }
+   ]
+  },
+  {
+   "name": "Ophelia",
+   "rarity": "RARE",
+   "gardenLevel": 5,
+   "requirement": "Talk to Ophelia",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Catacombs Entrance",
+     "x": -85.5,
+     "y": 55,
+     "z": -139.5
+    },
+    {
+     "island": "Dungeon Hub",
+     "zone": "Dungeon Hub",
+     "x": -49.5,
+     "y": 119,
+     "z": -9.5
+    }
+   ]
+  },
+  {
+   "name": "Oringo",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Oringo",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Village",
+     "x": -34.5,
+     "y": 69,
+     "z": 5.5
+    }
+   ]
+  },
+  {
+   "name": "Pearl Dealer",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 10,
+   "requirement": "Talk to Pearl Dealer",
+   "waypoints": [
+    {
+     "island": "The End",
+     "zone": "The End",
+     "x": -504.5,
+     "y": 101,
+     "z": -284.5
+    }
+   ]
+  },
+  {
+   "name": "Pest Wrangler",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Mayor Finnegan's Blooming Business perk",
+   "waypoints": []
+  },
+  {
+   "name": "Pest Wrangler?",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 1,
+   "requirement": "Mayor Finnegan's Blooming Business perk",
+   "waypoints": []
+  },
+  {
+   "name": "Pesthunter Phillip",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 5,
+   "requirement": "Complete Phillip's Quest",
+   "waypoints": []
+  },
+  {
+   "name": "Pesthunter Pamela",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 5,
+   "requirement": "Complete Pamela's Quest",
+   "waypoints": []
+  },
+  {
+   "name": "Pete",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Listen to the Bear Story",
+   "waypoints": []
+  },
+  {
+   "name": "Plumber Joe",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 7,
+   "requirement": "Talk to Plumber Joe",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Fishing Outpost",
+     "x": 123.5,
+     "y": 74,
+     "z": -38.5
+    }
+   ]
+  },
+  {
+   "name": "Puzzler",
+   "rarity": "RARE",
+   "gardenLevel": 2,
+   "requirement": "Talk to Puzzler",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Mines",
+     "x": 181.5,
+     "y": 196,
+     "z": 135.5
+    }
+   ]
+  },
+  {
+   "name": "Queen Mismyla",
+   "rarity": "RARE",
+   "gardenLevel": 2,
+   "requirement": "Talk to Queen Mismyla",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Royal Palace",
+     "x": 126.5,
+     "y": 195,
+     "z": 195.5
+    }
+   ]
+  },
+  {
+   "name": "Queen Nyx",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 13,
+   "requirement": "Reach 12,000 Mage Reputation",
+   "waypoints": [
+    {
+     "island": "Crimson Isle",
+     "zone": "Throne Room",
+     "x": -117.5,
+     "y": 105,
+     "z": -754.5
+    },
+    {
+     "island": "Crimson Isle",
+     "zone": "Mage Council",
+     "x": -120.5,
+     "y": 82,
+     "z": -754.5
+    }
+   ]
+  },
+  {
+   "name": "Ravenous Rhino",
+   "rarity": "MYTHIC",
+   "gardenLevel": 1,
+   "requirement": "Mayor Finnegan's Blooming Business perk; Serve 50 unique visitors",
+   "waypoints": []
+  },
+  {
+   "name": "Resident Neighbor",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Resident Neighbor",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Royal Quarters",
+     "x": 92,
+     "y": 202,
+     "z": 277
+    }
+   ]
+  },
+  {
+   "name": "Resident Snooty",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Resident Snooty",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Royal Quarters",
+     "x": 92,
+     "y": 202,
+     "z": 277
+    }
+   ]
+  },
+  {
+   "name": "Rhys",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 4,
+   "requirement": "Talk to Rhys",
+   "waypoints": [
+    {
+     "island": "Deep Caverns",
+     "zone": "Obsidian Sanctuary",
+     "x": 31.5,
+     "y": 12,
+     "z": 14.5
+    },
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Village",
+     "x": -38,
+     "y": 200,
+     "z": -119
+    }
+   ]
+  },
+  {
+   "name": "Romero",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Love's Trial Quest",
+   "waypoints": []
+  },
+  {
+   "name": "Royal Resident",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Recieve the Royal Resident's Cake",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Barracks of Heroes",
+     "x": 62,
+     "y": 204,
+     "z": 200
+    },
+    {
+     "island": "Dwarven Mines",
+     "zone": "Barracks of Heroes",
+     "x": 65.5,
+     "y": 211,
+     "z": 198.5
+    }
+   ]
+  },
+  {
+   "name": "Rusty",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to Rusty",
+   "waypoints": [
+    {
+     "island": "Gold Mine",
+     "zone": "Gold Mine",
+     "x": -19,
+     "y": 78,
+     "z": -325.5
+    }
+   ]
+  },
+  {
+   "name": "Ryan",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 6,
+   "requirement": "Complete Trial of Fire XX",
+   "waypoints": [
+    {
+     "island": "The Park",
+     "zone": "Trials of Fire",
+     "x": -364.5,
+     "y": 102.5,
+     "z": -90.5
+    }
+   ]
+  },
+  {
+   "name": "Ryu",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Sargwyn",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Sargwyn",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Tavern",
+     "x": 37.5,
+     "y": 202.281,
+     "z": -150.5
+    }
+   ]
+  },
+  {
+   "name": "Sam",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 15,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Scout Scardius",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 8,
+   "requirement": "Talk to Scout Scardius",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Base Camp",
+     "x": -16.5,
+     "y": 121,
+     "z": 232.5
+    }
+   ]
+  },
+  {
+   "name": "Seymour",
+   "rarity": "RARE",
+   "gardenLevel": 4,
+   "requirement": "Talk to Seymour",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Fashion Shop",
+     "x": 29,
+     "y": 66,
+     "z": -40
+    }
+   ]
+  },
+  {
+   "name": "Shaggy",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Shaggy",
+   "waypoints": [
+    {
+     "island": "Spider's Den",
+     "zone": "Grandma's House",
+     "x": -278.5,
+     "y": 121,
+     "z": -182.5
+    }
+   ]
+  },
+  {
+   "name": "Sherry",
+   "rarity": "RARE",
+   "gardenLevel": 9,
+   "requirement": "Talk to Sherry",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Sherry's Showroom",
+     "x": 6.5,
+     "y": 76,
+     "z": 95.5
+    }
+   ]
+  },
+  {
+   "name": "Shifty",
+   "rarity": "RARE",
+   "gardenLevel": 6,
+   "requirement": "Talk to Shifty",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wilderness",
+     "x": 114.5,
+     "y": 73,
+     "z": 175
+    }
+   ]
+  },
+  {
+   "name": "Sirius",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 1,
+   "requirement": "Talk to Sirius",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wilderness",
+     "x": 91.5,
+     "y": 75,
+     "z": 176.5
+    },
+    {
+     "island": "Hub",
+     "zone": "Dark Auction",
+     "x": 86,
+     "y": 55,
+     "z": 153
+    }
+   ]
+  },
+  {
+   "name": "Spaceman",
+   "rarity": "SPECIAL",
+   "gardenLevel": 15,
+   "requirement": "Serve 75 unique visitors; Serve 3,000 visitors",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "The Observatory",
+     "x": 260.5,
+     "y": 182,
+     "z": -565.5
+    }
+   ]
+  },
+  {
+   "name": "Spider Tamer",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Unlock 5 Perks from the Spider Essence Shop",
+   "waypoints": [
+    {
+     "island": "Spider's Den",
+     "zone": "Arachne's Sanctuary",
+     "x": -298.5,
+     "y": 62,
+     "z": -194.5
+    }
+   ]
+  },
+  {
+   "name": "St. Jerry",
+   "rarity": "RARE",
+   "gardenLevel": 10,
+   "requirement": "Talk to St. Jerry; Only visits during the Season of Jerry",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Jerry's Workshop",
+     "x": -22.5,
+     "y": 76,
+     "z": 92.5
+    }
+   ]
+  },
+  {
+   "name": "Stella",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Tal Ker",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 11,
+   "requirement": "Listen to everything Tal Ker has to say",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Grand Library",
+     "x": 193.5,
+     "y": 196,
+     "z": 205.5
+    }
+   ]
+  },
+  {
+   "name": "Tammy",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Talk to Tammy",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Trapper's Den",
+     "x": 284.5,
+     "y": 104,
+     "z": -544.5
+    }
+   ]
+  },
+  {
+   "name": "Tarwen",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Tarwen",
+   "waypoints": [
+    {
+     "island": "Dwarven Mines",
+     "zone": "Dwarven Tavern",
+     "x": 33.5,
+     "y": 202.281,
+     "z": -139.5
+    }
+   ]
+  },
+  {
+   "name": "Taylor",
+   "rarity": "SPECIAL",
+   "gardenLevel": 14,
+   "requirement": "Talk to Taylor; Serve 75 unique visitors",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Taylor's Shop",
+     "x": 37.5,
+     "y": 74,
+     "z": -39.5
+    }
+   ]
+  },
+  {
+   "name": "Terry",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 6,
+   "requirement": "Talk to Terry",
+   "waypoints": [
+    {
+     "island": "Jerry's Workshop",
+     "zone": "Terry's Shack",
+     "x": -92.5,
+     "y": 78,
+     "z": 25.5
+    }
+   ]
+  },
+  {
+   "name": "Tia the Fairy",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Talk to the Fairy",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wilderness",
+     "x": 119.5,
+     "y": 65,
+     "z": 147.5
+    }
+   ]
+  },
+  {
+   "name": "Tom",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Tomioka",
+   "rarity": "RARE",
+   "gardenLevel": 10,
+   "requirement": "Rough Deal",
+   "waypoints": []
+  },
+  {
+   "name": "Trevor",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "Talk to Trevor",
+   "waypoints": [
+    {
+     "island": "The Farming Islands",
+     "zone": "Trapper's Den",
+     "x": 281.5,
+     "y": 104,
+     "z": -542.5
+    }
+   ]
+  },
+  {
+   "name": "Trinity",
+   "rarity": "RARE",
+   "gardenLevel": 10,
+   "requirement": "Talk to Trinity",
+   "waypoints": []
+  },
+  {
+   "name": "Tyashoi Alchemist",
+   "rarity": "RARE",
+   "gardenLevel": 4,
+   "requirement": "Talk to Tyashoi Alchemist; Only visits during The Great Spook",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Farm",
+     "x": 70.5,
+     "y": 71,
+     "z": -85.5
+    }
+   ]
+  },
+  {
+   "name": "Tyzzo",
+   "rarity": "RARE",
+   "gardenLevel": 12,
+   "requirement": "Unlock 5 Perks from the Dragon Essence Shop",
+   "waypoints": [
+    {
+     "island": "The End",
+     "zone": "Void Slate",
+     "x": -597,
+     "y": 5,
+     "z": -272
+    }
+   ]
+  },
+  {
+   "name": "Vargul",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 6,
+   "requirement": "Talk to Vargul; Only visits during The Great Spook",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Ruins",
+     "x": -117.5,
+     "y": 68,
+     "z": 103.5
+    }
+   ]
+  },
+  {
+   "name": "Vex",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 1,
+   "requirement": "",
+   "waypoints": []
+  },
+  {
+   "name": "Vincent",
+   "rarity": "LEGENDARY",
+   "gardenLevel": 14,
+   "requirement": "Donate a Dye",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Artist's Abode",
+     "x": 79.5,
+     "y": 74,
+     "z": 53.5
+    }
+   ]
+  },
+  {
+   "name": "Vinyl Collector",
+   "rarity": "RARE",
+   "gardenLevel": 1,
+   "requirement": "Mayor Finnegan's Blooming Business perk",
+   "waypoints": []
+  },
+  {
+   "name": "Weaponsmith",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 3,
+   "requirement": "Talk to the Weaponsmith",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Combat Settlement",
+     "x": -50.5,
+     "y": 69,
+     "z": -85.5
+    }
+   ]
+  },
+  {
+   "name": "Wizard",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 3,
+   "requirement": "Talk to Wizard",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Wizard Tower",
+     "x": 48.5,
+     "y": 119,
+     "z": 99.5
+    },
+    {
+     "island": "Hub",
+     "zone": "Mountain",
+     "x": -5.5,
+     "y": 202,
+     "z": 65.5
+    }
+   ]
+  },
+  {
+   "name": "Xalx",
+   "rarity": "UNCOMMON",
+   "gardenLevel": 5,
+   "requirement": "Talk to Xalx",
+   "waypoints": []
+  },
+  {
+   "name": "Zog",
+   "rarity": "RARE",
+   "gardenLevel": 7,
+   "requirement": "Talk to Zog",
+   "waypoints": [
+    {
+     "island": "Hub",
+     "zone": "Pet Care",
+     "x": 10,
+     "y": 69,
+     "z": -71
+    }
+   ]
+  }
+ ]
+}

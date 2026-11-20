@@ -1,30 +1,20 @@
-# Powder Assist (Fabric 1.21.10)
+# Visitor Waypoints (Fabric 1.21.10)
 
-Helpers for powder grinding in the Crystal Hollows.
+Open your **Visitor's Logbook** in the Garden and flip through its pages. The mod reads which visitors you
+haven't unlocked yet and puts waypoints where you meet them (e.g. "Talk to the Alchemist" -> the Alchemist in the
+Hub's Farm). It only shows:
+* visitors your **Garden level** allows (the logbook's own tick/cross if it shows one, otherwise your level vs the wiki), and
+* waypoints on the **island you're on** (from the tab list "Area:", or the sidebar zone).
 
-## Keys
-| Key | What |
-|---|---|
-| **U** | Menu |
-| **J** | Hardstone auto-mine on/off |
-| **N** | Chest solver on/off |
+Waypoints are boxes with the visitor's name, what to do and the distance, visible through walls, with a tracer
+line to the nearest one. When chat shows `[NPC] Name:` for a "Talk to" visitor, that waypoint disappears.
 
-You can change them in Options > Controls > Powder Assist.
+Commands: `/vw` (status), `/vw list`, `/vw toggle`, `/vw tracer`, `/vw level <n>`, `/vw reset`.
+A key to show/hide waypoints can be set in Controls.
 
-## Features
-* **Chest solver**: when a treasure chest appears while you mine, the server puts crit particles on the spot you
-  have to hit. The solver turns your camera to that spot and (with **Auto-click** on) clicks it, one spot after
-  another, until the chest is lockpicked. Lockpick button: **Right-click** (default) or **Left-click**, in the menu.
-* **Chest ESP**: treasure chests get an orange box that shows through walls, a distance label and a tracer line
-  from your crosshair (green while being solved). New chests are spotted when they appear near you, or right after
-  the "You uncovered a treasure chest!" message.
-* **Auto-mine**: press J and it mines **hardstone** (stone) in reach. It picks the block that needs the least
-  turning, turns smoothly (Turn speed 1-10 in the menu), holds left click until it breaks, and never digs out the
-  block you're standing on. Gemstones (stained glass) and ores can be turned on too. It waits while the chest solver works.
-* **Powder tracker HUD**: mithril / gemstone / glacite powder gained this session and per hour (from the tab list,
-  or from chest reward messages if your tab doesn't show powder), chests opened / found and per hour, session
-  time and active time (time you were actually getting powder). Corner and on/off in the menu; **Reset session** there too.
+Locations come from the Hypixel SkyBlock Wiki (Garden Visitors/List and each NPC's page), read 2026-11-19:
+148 visitors, 109 with a place to go. Not included (no fixed spot on the wiki): Duncan, Trinity, Tomioka (Catacombs
+rooms), Odawa, Xalx, Pete, Romero, Garden-only and Mayor visitors.
 
-Settings are saved in `.minecraft/config/powderassist.txt`.
-
-Using mods that mine or click for you is against most servers' rules and can get you banned.
+Files: `config/visitorwaypoints-logbook.json` (what was read) and `config/visitorwaypoints-logbook-dump.txt`
+(the logbook items as the mod saw them, useful if something isn't read right).

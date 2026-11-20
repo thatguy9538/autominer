@@ -1,26 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "powderassist",
+  "id": "visitorwaypoints",
   "version": "${version}",
-  "name": "Powder Assist",
-  "description": "Crystal Hollows powder grinding helper: treasure chest solver, chest ESP, hardstone auto-mine and a powder tracker HUD. U = menu, J = auto-mine.",
-  "authors": [
-    "You"
-  ],
+  "name": "Visitor Waypoints",
+  "description": "Open your Visitor's Logbook and get waypoints to the Garden visitors you haven't unlocked yet, filtered by your Garden level and the island you're on. Locations from the Hypixel SkyBlock Wiki. /vw for status.",
+  "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "entrypoints": {
-    "client": [
-      "com.example.powderassist.PowderAssistClient"
-    ]
-  },
-  "depends": {
-    "fabricloader": ">=0.17.0",
-    "minecraft": "~1.21.10",
-    "java": ">=21",
-    "fabric-api": "*"
-  },
-  "mixins": [
-    "powderassist.mixins.json"
-  ]
+  "entrypoints": { "client": ["com.example.visitorwaypoints.VisitorWaypointsClient"] },
+  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }
