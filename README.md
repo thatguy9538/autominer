@@ -6,10 +6,16 @@ Hub's Farm). It only shows:
 * visitors your **Garden level** allows (the logbook's own tick/cross if it shows one, otherwise your level vs the wiki), and
 * waypoints on the **island you're on** (from the tab list "Area:", or the sidebar zone).
 
+**Island search:** every second the mod reads the nametags of all NPCs your game has loaded and remembers where
+each visitor's NPC really stands, per island. Those spots replace the wiki's (labelled "spotted here" instead of
+"wiki: zone"), and visitors the wiki has no spot for get a waypoint once you've walked near them. The server only
+sends NPCs near you, so the island fills in as you explore. Spots seen in the Garden are ignored (visitors show up
+there too). `/vw forgetspots` clears them.
+
 Waypoints are boxes with the visitor's name, what to do and the distance, visible through walls, with a tracer
 line to the nearest one. When chat shows `[NPC] Name:` for a "Talk to" visitor, that waypoint disappears.
 
-Commands: `/vw` (status), `/vw list`, `/vw toggle`, `/vw tracer`, `/vw level <n>`, `/vw reset`.
+Commands: `/vw` (status), `/vw list`, `/vw toggle`, `/vw tracer`, `/vw level <n>`, `/vw forgetspots`, `/vw reset`.
 A key to show/hide waypoints can be set in Controls.
 
 Locations come from the Hypixel SkyBlock Wiki (Garden Visitors/List and each NPC's page), read 2026-11-19:

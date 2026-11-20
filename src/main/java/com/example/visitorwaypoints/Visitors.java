@@ -47,6 +47,37 @@ public final class Visitors {
     /** Every zone name in the data -> its island (for working out the island from the sidebar). */
     public static final Map<String, String> ZONE_ISLAND = new LinkedHashMap<>();
 
+    /** A spot where we saw a visitor's NPC ourselves. */
+    public static final class Spot {
+        public String island;
+        public double x, y, z;
+    }
+
+    /** Visitor name -> spots seen by searching the islands (saved). */
+    public static final Map<String, List<Spot>> FOUND = new LinkedHashMap<>();
+
+    /** Remembers a spot; false if we already had one within 4 blocks (then it's just nudged). */
+    public static boolean addSpot(Visitor v, String island, double x, double y, double z) {
+        List<Spot> list = FOUND.computeIfAbsent(v.name(), n -> new ArrayList<>());
+        for (Spot s : list) {
+            if (s.island.equalsIgnoreCase(island)
+                    && (s.x - x) * (s.x - x) + (s.y - y) * (s.y - y) + (s.z - z) * (s.z - z) < 16) {
+                s.x = x;
+                s.y = y;
+                s.z = z;
+                return false;
+            }
+        }
+        if (list.size() >= 8) list.remove(0);
+        Spot s = new Spot();
+        s.island = island;
+        s.x = x;
+        s.y = y;
+        s.z = z;
+        list.add(s);
+        return true;
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static Path stateFile;
 
@@ -106,6 +137,14 @@ public final class Visitors {
             if (o.has("enabled")) VisitorWaypointsClient.enabled = o.get("enabled").getAsBoolean();
             if (o.has("tracers")) VisitorWaypointsClient.tracers = o.get("tracers").getAsBoolean();
             JsonObject vis = o.getAsJsonObject("visitors");
+            JsonObject found = o.getAsJsonObject("found");
+            if (found != null) {
+                for (String name : found.keySet()) {
+                    List<Spot> list = new ArrayList<>();
+                    for (JsonElement e : found.getAsJsonArray(name)) list.add(GSON.fromJson(e, Spot.class));
+                    FOUND.put(name, list);
+                }
+            }
             if (vis != null) {
                 for (String name : vis.keySet()) STATE.put(name, GSON.fromJson(vis.get(name), State.class));
             }
@@ -120,6 +159,7 @@ public final class Visitors {
         o.addProperty("enabled", VisitorWaypointsClient.enabled);
         o.addProperty("tracers", VisitorWaypointsClient.tracers);
         o.add("visitors", GSON.toJsonTree(STATE));
+        o.add("found", GSON.toJsonTree(FOUND));
         try {
             Files.createDirectories(stateFile.getParent());
             Files.writeString(stateFile, GSON.toJson(o), StandardCharsets.UTF_8);

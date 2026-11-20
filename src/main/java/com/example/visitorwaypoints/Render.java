@@ -86,7 +86,8 @@ public final class Render {
         if (top == null) return;
         double dist = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).distanceTo(p);
         String name = s.visitor().name() + "  " + String.format("%.0fm", dist);
-        String what = s.visitor().requirement().isEmpty() ? s.zone() : s.visitor().requirement() + "  (" + s.zone() + ")";
+        String where = s.spotted() ? "spotted here" : "wiki: " + s.zone();
+        String what = s.visitor().requirement().isEmpty() ? where : s.visitor().requirement() + "  (" + where + ")";
         int tx = (int) top[0], ty = (int) top[1];
         int w = Math.max(tr.getWidth(name), tr.getWidth(what)) + 6;
         ctx.fill(tx - w / 2, ty - 12, tx + w / 2, ty + 10, 0x90000000);

@@ -44,7 +44,8 @@ public class VisitorWaypointsClient implements ClientModInitializer {
     public static int gardenLevel = -1;
 
     /** A waypoint being drawn right now. */
-    public record Shown(Visitors.Visitor visitor, String zone, Vec3d pos) {}
+    /** A waypoint being drawn right now; `spotted` = we saw the NPC there ourselves (not just the wiki). */
+    public record Shown(Visitors.Visitor visitor, String zone, Vec3d pos, boolean spotted) {}
 
     public static List<Shown> shown = List.of();
 
@@ -99,6 +100,12 @@ public class VisitorWaypointsClient implements ClientModInitializer {
                             list(MinecraftClient.getInstance());
                             return 1;
                         }))
+                        .then(ClientCommandManager.literal("forgetspots").executes(c -> {
+                            Visitors.FOUND.clear();
+                            Visitors.save();
+                            say(MinecraftClient.getInstance(), "Forgot every NPC spot found by searching. Back to wiki spots.");
+                            return 1;
+                        }))
                         .then(ClientCommandManager.literal("reset").executes(c -> {
                             Visitors.reset();
                             say(MinecraftClient.getInstance(), "Forgot everything read from the logbook. Open it again.");
@@ -120,6 +127,7 @@ public class VisitorWaypointsClient implements ClientModInitializer {
         }
         Logbook.tick(client);
         Where.tick(client);
+        Scanner.tick(client);
         if (++ticks % 10 == 0) {
             scanMenuForGardenLevel(client);
             shown = compute();
@@ -141,13 +149,19 @@ public class VisitorWaypointsClient implements ClientModInitializer {
         List<Shown> out = new ArrayList<>();
         if (!enabled || Where.island == null) return out;
         for (Visitors.Visitor v : Visitors.ALL) {
-            if (v.waypoints().isEmpty()) continue;
+            if (!Scanner.needsTrip(v)) continue;
             Visitors.State st = Visitors.STATE.get(v.name());
             if (st == null || !st.seen || st.unlocked || st.talked) continue;
             if (!levelOk(v, st)) continue;
+            // spots we found by searching the island win; the wiki's spots are the fallback
+            List<Visitors.Spot> found = Scanner.spots(v, Where.island);
+            if (!found.isEmpty()) {
+                for (Visitors.Spot s : found) out.add(new Shown(v, "spotted", new Vec3d(s.x, s.y, s.z), true));
+                continue;
+            }
             for (Visitors.Waypoint w : v.waypoints()) {
                 if (!w.island().equalsIgnoreCase(Where.island)) continue;
-                out.add(new Shown(v, w.zone(), new Vec3d(w.x(), w.y(), w.z())));
+                out.add(new Shown(v, w.zone(), new Vec3d(w.x(), w.y(), w.z()), false));
             }
         }
         return out;
@@ -199,7 +213,10 @@ public class VisitorWaypointsClient implements ClientModInitializer {
         say(client, "Island: " + (Where.island == null ? "unknown" : Where.island + " (from " + Where.islandSource + ")"));
         say(client, "Logbook: " + seen + " visitors read, " + locked + " not unlocked; " + shown.size() + " waypoints here");
         if (seen == 0) say(client, "Open the Visitor's Logbook in your Garden and go through its pages to start.");
-        say(client, "/vw list, /vw toggle, /vw tracer, /vw level <n>, /vw reset");
+        int spots = 0;
+        for (List<Visitors.Spot> l : Visitors.FOUND.values()) spots += l.size();
+        say(client, "Island search: " + spots + " NPC spots found so far (they replace the wiki's spots)");
+        say(client, "/vw list, /vw toggle, /vw tracer, /vw level <n>, /vw forgetspots, /vw reset");
     }
 
     private static void list(MinecraftClient client) {
@@ -216,7 +233,8 @@ public class VisitorWaypointsClient implements ClientModInitializer {
             Visitors.Visitor v = s.visitor();
             client.player.sendMessage(Text.literal(" - " + v.name()).formatted(Formatting.YELLOW)
                     .append(Text.literal("  " + v.requirement() + "  @ " + (int) Math.floor(s.pos().x) + ", "
-                            + (int) Math.floor(s.pos().y) + ", " + (int) Math.floor(s.pos().z) + " (" + s.zone() + ")")
+                            + (int) Math.floor(s.pos().y) + ", " + (int) Math.floor(s.pos().z)
+                            + (s.spotted() ? " (spotted)" : " (wiki: " + s.zone() + ")"))
                             .formatted(Formatting.GRAY)), false);
         }
     }
