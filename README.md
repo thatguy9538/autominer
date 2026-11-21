@@ -1,4 +1,6 @@
-# Lane Walker: Fabric mod for Minecraft 1.21.10
+# Scratch Code
+
+_Formerly **Lane Walker**. Your saved scripts in `config/lanewalker.txt` are copied to `config/scratchcode.txt` the first time it loads; re-bind the "Open Block Editor" key (default B) in Controls if you had changed it._: Fabric mod for Minecraft 1.21.10
 
 Build a walking program out of Scratch-style blocks, then run it.
 
@@ -71,7 +73,7 @@ Build a walking program out of Scratch-style blocks, then run it.
 * A script with no repeat runs once from top to bottom, then stops ("finished").
 * Buttons: **Stop**, **Reset** (back to one left/right script), **Done**.
 
-Your scripts are saved automatically to `.minecraft/config/lanewalker.txt`.
+Your scripts are saved automatically to `.minecraft/config/scratchcode.txt`.
 
 While a script runs, Minecraft keeps going when you click into another window or tab (the "pause on lost
 focus" setting is turned off until the script stops, then put back). Mining / attacking with a held left click

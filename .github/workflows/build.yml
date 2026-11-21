@@ -1,4 +1,4 @@
-name: Build Lane Walker
+name: Build Scratch Code
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Upload mod jar
         uses: actions/upload-artifact@v4
         with:
-          name: lanewalker-fabric-1.21.10
+          name: scratchcode-fabric-1.21.10
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar

@@ -1,4 +1,4 @@
-package com.example.lanewalker;
+package com.example.scratchcode;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A Scratch-style block editor for Lane Walker scripts.
+ * A Scratch-style block editor for Scratch Code scripts.
  *
  * Each script starts with a "when [key] pressed" hat block. Blocks snap under
  * it, and "C" blocks (repeat, if at, if done) hold their own section of blocks.
@@ -181,11 +181,11 @@ public class BlockEditorScreen extends Screen {
     private final List<int[]> tabs = new ArrayList<>();
 
     public BlockEditorScreen() {
-        super(Text.literal("Lane Walker Blocks"));
+        super(Text.literal("Scratch Code Blocks"));
     }
 
     private static Workspace ws() {
-        return LaneWalkerClient.workspace;
+        return ScratchCodeClient.workspace;
     }
 
     private static Program script(int index) {
@@ -211,7 +211,7 @@ public class BlockEditorScreen extends Screen {
         capturingStep = null;
         editingText = null;
         if (editNumStep != null) applyNumber();
-        LaneWalkerClient.saveProgram();
+        ScratchCodeClient.saveProgram();
     }
 
     // ------------------------------------------------------------------ layout
@@ -356,7 +356,7 @@ public class BlockEditorScreen extends Screen {
             case PICK -> {
                 if (leftDown) {                  // use what you're holding / looking at right now
                     String id = s.kind == Program.Kind.IF_HOLDING
-                            ? LaneWalkerClient.heldItem(client) : LaneWalkerClient.lookedAtBlock(client);
+                            ? ScratchCodeClient.heldItem(client) : ScratchCodeClient.lookedAtBlock(client);
                     if (!id.isEmpty()) s.text = id;
                 } else {
                     s.text = "";
@@ -390,9 +390,9 @@ public class BlockEditorScreen extends Screen {
             }
             case RUN -> {
                 if (leftDown && p != null) {
-                    LaneWalkerClient.saveProgram();
+                    ScratchCodeClient.saveProgram();
                     close();
-                    LaneWalkerClient.start(client, p);
+                    ScratchCodeClient.start(client, p);
                 }
             }
             case HAT -> {
@@ -415,8 +415,8 @@ public class BlockEditorScreen extends Screen {
                     if (n.kind == Program.Kind.IF_Y && client.player != null) {
                         n.amount = MathHelper.floor(client.player.getY());
                     }
-                    if (n.kind == Program.Kind.IF_HOLDING) n.text = LaneWalkerClient.heldItem(client);
-                    if (n.kind == Program.Kind.IF_LOOKING) n.text = LaneWalkerClient.lookedAtBlock(client);
+                    if (n.kind == Program.Kind.IF_HOLDING) n.text = ScratchCodeClient.heldItem(client);
+                    if (n.kind == Program.Kind.IF_LOOKING) n.text = ScratchCodeClient.lookedAtBlock(client);
                     if (n.kind.usesXZ() && client.player != null) {
                         n.amount = MathHelper.floor(client.player.getX());   // start at your spot
                         n.amount2 = MathHelper.floor(client.player.getZ());
@@ -611,7 +611,7 @@ public class BlockEditorScreen extends Screen {
         StringBuilder sb = new StringBuilder();
         for (int k : keys) {
             if (sb.length() > 0) sb.append(" + ");
-            sb.append(LaneWalkerClient.keyName(k));
+            sb.append(ScratchCodeClient.keyName(k));
         }
         return sb.toString();
     }
@@ -743,7 +743,7 @@ public class BlockEditorScreen extends Screen {
 
     private void pressButton(int index) {
         switch (index) {
-            case 0 -> LaneWalkerClient.stop(client, "stopped");
+            case 0 -> ScratchCodeClient.stop(client, "stopped");
             case 1 -> {                       // Reset
                 ws().scripts.clear();
                 ws().scripts.addAll(Workspace.defaults().scripts);
@@ -784,7 +784,7 @@ public class BlockEditorScreen extends Screen {
         sockets.clear();
         dropPoints.clear();
 
-        ctx.drawCenteredTextWithShadow(textRenderer, "Lane Walker \u2014 Block Editor", width / 2, 8, WHITE);
+        ctx.drawCenteredTextWithShadow(textRenderer, "Scratch Code \u2014 Block Editor", width / 2, 8, WHITE);
 
         drawPalette(ctx);
         drawScripts(ctx, mouseX, mouseY);
@@ -1157,7 +1157,7 @@ public class BlockEditorScreen extends Screen {
                     new Seg(SegType.NUM2, String.valueOf(s.amount2)));
             case STOP_SCRIPT -> List.of(new Seg(SegType.LABEL, "stop script"));
             case RUN_SCRIPT -> List.of(new Seg(SegType.LABEL, "run"),
-                    new Seg(SegType.SCRIPTKEY, capturingStep == s ? "press a key" : LaneWalkerClient.keyName(s.amount)),
+                    new Seg(SegType.SCRIPTKEY, capturingStep == s ? "press a key" : ScratchCodeClient.keyName(s.amount)),
                     new Seg(SegType.LABEL, "script"));
             case SELECT_SLOT -> List.of(new Seg(SegType.LABEL, "select slot"),
                     new Seg(SegType.NUM, String.valueOf(s.amount)));

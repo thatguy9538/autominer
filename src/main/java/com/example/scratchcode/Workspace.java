@@ -1,4 +1,4 @@
-package com.example.lanewalker;
+package com.example.scratchcode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** All of the player's scripts, saved together in .minecraft/config/lanewalker.txt. */
+/** All of the player's scripts, saved together in .minecraft/config/scratchcode.txt. */
 public class Workspace {
 
     public static final int MAX_SCRIPTS = 8;

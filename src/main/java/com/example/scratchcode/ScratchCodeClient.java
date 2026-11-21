@@ -1,4 +1,4 @@
-package com.example.lanewalker;
+package com.example.scratchcode;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.api.ClientModInitializer;
@@ -39,7 +39,7 @@ import java.nio.file.Path;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
 
 /**
- * Lane Walker (Fabric, Minecraft 1.21.10)
+ * Scratch Code (Fabric, Minecraft 1.21.10)
  *
  * Build walking scripts out of Scratch-style blocks, then run them.
  * Each script starts with "when [key] pressed"; that key runs / stops it.
@@ -49,10 +49,10 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
  *   /walk run    run the first script
  *   /walk stop   stop
  */
-public class LaneWalkerClient implements ClientModInitializer {
+public class ScratchCodeClient implements ClientModInitializer {
 
     private static final KeyBinding.Category CATEGORY =
-            KeyBinding.Category.create(Identifier.of("lanewalker", "main"));
+            KeyBinding.Category.create(Identifier.of("scratchcode", "main"));
 
     /** Ticks to wait after a walk step starts before a wall can end it. */
     private static final int WALL_COOLDOWN = 6;
@@ -112,14 +112,22 @@ public class LaneWalkerClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        configFile = FabricLoader.getInstance().getConfigDir().resolve("lanewalker.txt");
+        configFile = FabricLoader.getInstance().getConfigDir().resolve("scratchcode.txt");
+        // renamed from Lane Walker: bring the old scripts along the first time
+        java.nio.file.Path old = FabricLoader.getInstance().getConfigDir().resolve("lanewalker.txt");
+        if (!java.nio.file.Files.exists(configFile) && java.nio.file.Files.exists(old)) {
+            try {
+                java.nio.file.Files.copy(old, configFile);
+            } catch (java.io.IOException ignored) {
+            }
+        }
         workspace = Workspace.load(configFile);
         program = workspace.scripts.get(0);
 
         editorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.lanewalker.editor", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_B, CATEGORY));
+                "key.scratchcode.editor", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_B, CATEGORY));
 
-        ClientTickEvents.START_CLIENT_TICK.register(LaneWalkerClient::onTick);
+        ClientTickEvents.START_CLIENT_TICK.register(ScratchCodeClient::onTick);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             LiteralArgumentBuilder<FabricClientCommandSource> walk = literal("walk");
             walk.then(literal("stop").executes(ctx -> {
@@ -162,7 +170,7 @@ public class LaneWalkerClient implements ClientModInitializer {
     public static void start(MinecraftClient client, Program script) {
         if (client.player == null || script == null) return;
         if (script.steps.isEmpty()) {
-            say(client, Text.literal("Lane Walker: the [" + script.comboName()
+            say(client, Text.literal("Scratch Code: the [" + script.comboName()
                     + "] script is empty. Press B to add blocks.").formatted(Formatting.RED));
             return;
         }
@@ -194,7 +202,7 @@ public class LaneWalkerClient implements ClientModInitializer {
             savedPauseOnLostFocus = null;
         }
         KeyBinding.updatePressedStates(); // hand movement keys back to the real keyboard
-        say(client, Text.literal("Lane Walker: " + why).formatted(Formatting.YELLOW));
+        say(client, Text.literal("Scratch Code: " + why).formatted(Formatting.YELLOW));
     }
 
     private static Program.Step current() {
@@ -239,7 +247,7 @@ public class LaneWalkerClient implements ClientModInitializer {
                 break;
             }
         }
-        say(client, Text.literal("Lane Walker: ").formatted(Formatting.YELLOW)
+        say(client, Text.literal("Scratch Code: ").formatted(Formatting.YELLOW)
                 .append(Text.literal(desc).formatted(Formatting.WHITE))
                 .append(Text.literal(loop).formatted(Formatting.GRAY)));
     }

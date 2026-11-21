@@ -1,4 +1,4 @@
-package com.example.lanewalker;
+package com.example.scratchcode;
 
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -147,7 +147,7 @@ public class Program {
                 case REPEAT -> amount == 0 ? "repeat forever" : "repeat " + amount + " times";
                 case REPEAT_UNTIL -> "repeat until at x " + amount + " z " + amount2;
                 case STOP_SCRIPT -> "stop script";
-                case RUN_SCRIPT -> "run [" + LaneWalkerClient.keyName(amount) + "] script";
+                case RUN_SCRIPT -> "run [" + ScratchCodeClient.keyName(amount) + "] script";
                 case HOLD_KEY -> "hold " + inputName(amount, amount3 == 1) + " for " + tenths(amount2) + " s";
                 case SELECT_SLOT -> "select slot " + amount;
                 case IF_HOLDING -> "if holding " + prettyId(text);
@@ -185,7 +185,7 @@ public class Program {
                 default -> "mouse " + (code + 1);
             };
         }
-        return LaneWalkerClient.keyName(code);
+        return ScratchCodeClient.keyName(code);
     }
 
     /** "minecraft:diamond_pickaxe" -> "diamond pickaxe". */
@@ -234,7 +234,7 @@ public class Program {
         StringBuilder sb = new StringBuilder();
         for (int k : c) {
             if (sb.length() > 0) sb.append(" + ");
-            sb.append(LaneWalkerClient.keyName(k));
+            sb.append(ScratchCodeClient.keyName(k));
         }
         return sb.toString();
     }
