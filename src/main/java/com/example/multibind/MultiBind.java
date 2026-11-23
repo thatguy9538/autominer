@@ -32,6 +32,8 @@ public final class MultiBind {
     public static final Map<String, List<InputUtil.Key>> EXTRA = new LinkedHashMap<>();
 
     private static Path configFile;
+    /** Bindings that are down only because of an extra key (so we never release someone else's hold). */
+    private static final java.util.Set<KeyBinding> heldByUs = new java.util.HashSet<>();
 
     // ------------------------------------------------------------------ input (called from the mixin)
 
@@ -45,10 +47,16 @@ public final class MultiBind {
             boolean isMain = key.equals(KeyBindingHelper.getBoundKeyOf(b));
             if (!isExtra && !isMain) continue;
             if (pressed && isExtra) {
+                if (!b.isPressed()) heldByUs.add(b);       // we're the reason it's down
                 b.setPressed(true);
             } else if (!pressed) {
-                // let go of one key: the binding stays down while its own key or another extra is held
-                b.setPressed(anyHeld(b));
+                if (anyHeld(b)) {
+                    // let go of one key: stays down while its own key or another extra is held
+                    b.setPressed(true);
+                } else if (isExtra && heldByUs.remove(b)) {
+                    // only let go of what we pressed, so mods that hold keys (like Sticky Keys) keep theirs
+                    b.setPressed(false);
+                }
             }
         }
     }
@@ -119,12 +127,13 @@ public final class MultiBind {
         if (list == null) return;
         list.remove(key);
         if (list.isEmpty()) EXTRA.remove(b.getId());
-        b.setPressed(anyHeld(b));
+        if (heldByUs.remove(b) && !anyHeld(b)) b.setPressed(false);
         save();
     }
 
     public static void clearAll() {
         EXTRA.clear();
+        heldByUs.clear();
         KeyBinding.updatePressedStates();
         save();
     }

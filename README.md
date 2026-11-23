@@ -14,3 +14,7 @@ or bind "Open Multi Bind settings" in Options > Controls.
 * **Remove all extra keys** clears everything.
 
 The action's own key is still changed in Controls as usual. Extra keys are saved in `.minecraft/config/multibind.txt`.
+
+## Works with Sticky Keys
+Multi Bind only lets go of an action that one of its extra keys pressed, so a key Sticky Keys is holding stays held.
+With Sticky Keys 1.2.0 or newer, extra keys also latch sticky actions.
