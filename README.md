@@ -1,19 +1,16 @@
-# Sticky Keys (Fabric 1.21.10)
+# Multi Bind (Fabric 1.21.10)
 
-Make any key binding sticky: press it once and it **stays held** after you let go; press it again to let go.
-Works for keyboard keys and mouse buttons (e.g. make **Attack** sticky to keep mining, **Forward** to auto-walk).
+Give any action more than one key. Jump on Space **and** Mouse 4, Attack on Left Click **and** R, or a mod's key on
+two keys at once. The action's own key keeps working; each extra key presses, holds and clicks the action exactly the same way.
 
-## Settings
-Open **Mod Menu > Sticky Keys > settings button** (you need [Mod Menu](https://modrinth.com/mod/modmenu) 16.x for
-1.21.10). You can also bind a key to "Open Sticky Keys settings" in Options > Controls.
+## Setting it up
+Open **Mod Menu > Multi Bind > settings button** (needs [Mod Menu](https://modrinth.com/mod/modmenu) 16.x for 1.21.10),
+or bind "Open Multi Bind settings" in Options > Controls.
 
-* Every key binding is listed by category with its current key. Click **normal / STICKY** to switch it.
-  Search by name or key at the top. A green dot shows keys that are held right now.
-* **On / off key** (default **Y**): turns every sticky key on and off at once, with a message above the hotbar.
-  Rebind it right in the Sticky Keys screen (click the key button, press a key; Esc cancels, Backspace unbinds) or in Controls.
-* **Sticky Keys** ON/OFF button: the same switch.
-* **Release in menus**: let go of held keys when you open the inventory, chat, etc. (default ON).
-* **Held keys HUD**: shows little green chips for the keys being held; choose where.
-* **Let go of all** (also bindable to a key) and **Make none sticky**.
+* Every action is listed by category: its own key on the left, its extra keys on the right.
+* **+ Add key**, then press a key or mouse button (Esc cancels). Up to 4 extra keys per action.
+* Click an extra key to remove it. Keys also used by another action show in gold, with a tooltip saying which.
+* Search by action name or key; "Showing: with extra keys" lists only the actions you've changed.
+* **Remove all extra keys** clears everything.
 
-Sneak and Sprint start out sticky. Settings are saved to `.minecraft/config/stickykeys.txt`.
+The action's own key is still changed in Controls as usual. Extra keys are saved in `.minecraft/config/multibind.txt`.
