@@ -55,7 +55,8 @@ public final class Sticky {
         if (!enabled) return;
         for (KeyBinding b : bindings()) {
             if (!sticky.contains(b.getId()) || b.getId().startsWith("key.stickykeys.")) continue;
-            if (!key.equals(KeyBindingHelper.getBoundKeyOf(b))) continue;
+            // the binding's own key, or one of its extra keys from Multi Bind
+            if (!key.equals(KeyBindingHelper.getBoundKeyOf(b)) && !MultiBindCompat.extras(b).contains(key)) continue;
             if (!latched.remove(b)) latched.add(b);        // press: latch, press again: unlatch
         }
     }

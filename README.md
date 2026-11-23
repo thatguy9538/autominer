@@ -17,3 +17,6 @@ Open **Mod Menu > Sticky Keys > settings button** (you need [Mod Menu](https://m
 * **Let go of all** (also bindable to a key) and **Make none sticky**.
 
 Sneak and Sprint start out sticky. Settings are saved to `.minecraft/config/stickykeys.txt`.
+
+## Works with Multi Bind
+If the Multi Bind mod is installed, an action's extra keys from Multi Bind latch and unlatch it exactly like its own key.
