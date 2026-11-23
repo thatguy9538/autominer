@@ -43,3 +43,8 @@ jar {
 		rename { "${it}_${inputs.properties.archivesName}" }
 	}
 }
+
+// The jar is named "Scratch Code <version>.jar"
+remapJar {
+	archiveFileName.set("Scratch Code ${project.version}.jar")
+}
