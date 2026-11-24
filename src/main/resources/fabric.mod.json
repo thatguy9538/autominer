@@ -1,17 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "multibind",
+  "id": "wardrobekeys",
   "version": "${version}",
-  "name": "Multi Bind",
-  "description": "Give any action more than one key: add extra keys or mouse buttons to jump, attack, sprint or any mod's key binding. Set them up in Mod Menu.",
+  "name": "Wardrobe Keys",
+  "description": "A key for each SkyBlock wardrobe slot: opens /wardrobe, turns the page, equips the slot and closes the menu. Also /wd <slot>.",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "mixins": ["multibind.mixins.json"],
-  "entrypoints": {
-    "client": ["com.example.multibind.MultiBindClient"],
-    "modmenu": ["com.example.multibind.ModMenuIntegration"]
-  },
-  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" },
-  "suggests": { "modmenu": "*" }
+  "entrypoints": { "client": ["com.example.wardrobekeys.WardrobeKeysClient"] },
+  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }
