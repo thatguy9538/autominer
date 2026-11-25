@@ -1,4 +1,4 @@
-name: Build Wardrobe Keys
+name: Build Rank Scout
 
 on:
   push:

@@ -1,13 +1,14 @@
-# Wardrobe Keys (Fabric 1.21.10)
+# Rank Scout (Fabric 1.21.10)
 
-One key per SkyBlock wardrobe slot (1-18). Press it and the mod opens `/wardrobe`, turns to page 2 if needed,
-clicks that slot's equip button and closes the menu.
+Every time you join Fakepixel it starts by itself: it reads your own profile, then opens the profile of each player
+around you (`/viewprofile <name>`), reads their skills and collections (following the profile's Skills and
+Collections buttons), and closes it. For each skill and collection, a player's value is only kept if it beats yours;
+players who aren't ahead of you in anything aren't stored.
 
-* Set the keys in **Options > Controls > Wardrobe Keys** (they start unbound so they don't clash with your hotbar).
-* Or type `/wd <slot>`, e.g. `/wd 3`.
-* `/wd close` turns closing the wardrobe afterwards on/off.
-* It says so in chat if the slot is locked, empty or already on.
+The report is `.minecraft/rankscout/ranks.html` (open it with `/ranks open`): a table per skill and per collection of
+everyone ahead of you, with you at the bottom, a Players tab, and a search box. Raw data: `rankscout/data.json`.
 
-The button is found by its name ("Slot 3: ..."), so it works even if the layout differs. If it can't find it, it writes
-the wardrobe's items to `config/wardrobekeys-dump.txt`. `config/wardrobekeys.txt` also lets you change the command
-that opens the wardrobe.
+* Scans only while you stand still (the profile menu shows on your screen), one profile every 8 seconds,
+  and each player at most every 12 hours. Change these in `rankscout/settings.txt`.
+* `/ranks` status, `/ranks open`, `/ranks toggle` (also a key in Controls), `/ranks scan <player>`, `/ranks me`
+  (re-read your profile), `/ranks dump` (save the next profile's menus to `rankscout/menu-dump.txt`).

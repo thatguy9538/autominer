@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "wardrobekeys",
+  "id": "rankscout",
   "version": "${version}",
-  "name": "Wardrobe Keys",
-  "description": "A key for each SkyBlock wardrobe slot: opens /wardrobe, turns the page, equips the slot and closes the menu. Also /wd <slot>.",
+  "name": "Rank Scout",
+  "description": "On Fakepixel, scans the profiles of players around you and keeps, per skill and collection, the ones ahead of you. Writes .minecraft/rankscout/ranks.html. Starts by itself when you join. /ranks",
   "authors": ["You"],
   "license": "MIT",
   "environment": "client",
-  "entrypoints": { "client": ["com.example.wardrobekeys.WardrobeKeysClient"] },
+  "entrypoints": { "client": ["com.example.rankscout.RankScoutClient"] },
   "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }
