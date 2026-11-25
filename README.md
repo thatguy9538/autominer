@@ -11,7 +11,7 @@ everyone ahead of you, with you at the bottom, a Players tab, and a search box. 
 * Scans only while you stand still (the profile menu shows on your screen), one profile every 8 seconds,
   and each player at most every 12 hours. Change these in `rankscout/settings.txt`.
 * `/ranks speed` shows the speed; `/ranks speed <seconds>` (3-300) or `slow` (20 s) / `normal` (8 s) / `fast` (4 s) changes it.
-* **Click speed:** `/ranks speed <ms>` sets how long it waits on each menu before reading it and clicking to the
+* **Click speed:** `/ranks clickspeed <ms>` (or `slow` 600 / `normal` 200 / `fast` 100) sets how long it waits on each menu before reading it and clicking to the
   next one (50 = fastest, 200 = default, up to 5000). Also `clickDelayMs` in `rankscout/settings.txt`.
 * `/ranks` status, `/ranks open`, `/ranks toggle` (also a key in Controls), `/ranks scan <player>`, `/ranks me`
   (re-read your profile), `/ranks dump` (save the next profile's menus to `rankscout/menu-dump.txt`).

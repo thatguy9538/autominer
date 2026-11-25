@@ -39,6 +39,8 @@ public class RankScoutClient implements ClientModInitializer {
     public static boolean enabled = true;
     public static boolean onlyWhenIdle = true;
     public static int secondsBetween = 8;
+    /** Click speed: ms to wait on each menu before reading it and clicking to the next (50 = fastest). */
+    public static int clickDelayMs = 200;
     public static int rescanHours = 12;
     public static String command = "viewprofile";
     public static String serverMatch = "fakepixel";
@@ -96,6 +98,17 @@ public class RankScoutClient implements ClientModInitializer {
                         .then(ClientCommandManager.literal("fast").executes(c -> setSpeed(4)))
                         .then(ClientCommandManager.argument("seconds", IntegerArgumentType.integer(MIN_SECONDS, 300))
                                 .executes(c -> setSpeed(IntegerArgumentType.getInteger(c, "seconds")))))
+                .then(ClientCommandManager.literal("clickspeed")
+                        .executes(c -> {
+                            say(MinecraftClient.getInstance(), "Click speed: " + clickDelayMs + " ms on each menu. Change it with"
+                                    + " /ranks clickspeed <50-5000>, or slow (600) / normal (200) / fast (100).");
+                            return 1;
+                        })
+                        .then(ClientCommandManager.literal("slow").executes(c -> setClickSpeed(600)))
+                        .then(ClientCommandManager.literal("normal").executes(c -> setClickSpeed(200)))
+                        .then(ClientCommandManager.literal("fast").executes(c -> setClickSpeed(100)))
+                        .then(ClientCommandManager.argument("ms", IntegerArgumentType.integer(50, 5000))
+                                .executes(c -> setClickSpeed(IntegerArgumentType.getInteger(c, "ms")))))
                 .then(ClientCommandManager.literal("me").executes(c -> {
                     if (Store.data.me != null) Store.data.me.scanned = 0;
                     say(MinecraftClient.getInstance(), "Re-reading your own profile next.");
@@ -119,6 +132,18 @@ public class RankScoutClient implements ClientModInitializer {
         return 1;
     }
 
+    /** Click speed in game ticks (1 tick = 50 ms), at least 1. */
+    public static int clickDelayTicks() {
+        return Math.max(1, Math.round(clickDelayMs / 50f));
+    }
+
+    private static int setClickSpeed(int ms) {
+        clickDelayMs = Math.max(50, Math.min(5000, ms));
+        saveSettings();
+        say(MinecraftClient.getInstance(), "Click speed set: " + clickDelayMs + " ms on each menu before clicking to the next.");
+        return 1;
+    }
+
     static boolean onFakepixel(MinecraftClient client) {
         ServerInfo s = client.getCurrentServerEntry();
         return s != null && s.address != null && s.address.toLowerCase(Locale.ROOT).contains(serverMatch);
@@ -137,7 +162,8 @@ public class RankScoutClient implements ClientModInitializer {
         say(client, Store.data.players.size() + " players ahead of you saved, " + Store.data.lastScan.size()
                 + " profiles scanned. Your profile: " + (Store.data.me == null ? "not read yet"
                 : Store.data.me.skills.size() + " skills, " + Store.data.me.collections.size() + " collections"));
-        say(client, "Speed: one profile every " + secondsBetween + " seconds (/ranks speed)");
+        say(client, "Speed: one profile every " + secondsBetween + " seconds (/ranks speed), "
+                + clickDelayMs + " ms per menu (/ranks clickspeed)");
         say(client, "/ranks open, /ranks toggle, /ranks speed, /ranks scan <player>, /ranks me, /ranks dump");
         say(client, "Report: " + Store.html());
     }
@@ -168,6 +194,7 @@ public class RankScoutClient implements ClientModInitializer {
                     case "enabled" -> enabled = v.equals("true");
                     case "onlyWhenIdle" -> onlyWhenIdle = v.equals("true");
                     case "secondsBetween" -> secondsBetween = Math.max(MIN_SECONDS, Integer.parseInt(v));
+                    case "clickDelayMs" -> clickDelayMs = Math.max(50, Math.min(5000, Integer.parseInt(v)));
                     case "rescanHours" -> rescanHours = Math.max(1, Integer.parseInt(v));
                     case "command" -> command = v.replaceFirst("^/", "");
                     case "server" -> serverMatch = v.toLowerCase(Locale.ROOT);
@@ -185,6 +212,7 @@ public class RankScoutClient implements ClientModInitializer {
             Files.writeString(settingsFile(), "# Rank Scout settings\nenabled=" + enabled
                     + "\n# only scan while you stand still (the profile menu opens on your screen)\nonlyWhenIdle=" + onlyWhenIdle
                     + "\n# seconds to wait between profiles (min 3)\nsecondsBetween=" + secondsBetween
+                    + "\n# click speed: ms to wait on each menu before clicking to the next (50-5000)\nclickDelayMs=" + clickDelayMs
                     + "\n# hours before the same player is scanned again\nrescanHours=" + rescanHours
                     + "\n# command that opens someone's profile (without /)\ncommand=" + command
                     + "\n# start automatically on servers whose address contains this\nserver=" + serverMatch + "\n",
