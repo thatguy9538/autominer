@@ -156,7 +156,7 @@ public final class Scanner {
         String sig = sig(client);
         if (sig.isEmpty()) return;
         if (phase == Phase.WAIT_PAGE && sig.equals(pageSig)) return;      // old page still showing
-        if (++settle < 4) return;                                          // let the whole page arrive
+        if (++settle < RankScoutClient.clickDelayTicks()) return;          // click speed: wait for the page first
 
         // read this page
         pageSig = sig;
