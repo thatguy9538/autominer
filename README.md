@@ -1,7 +1,7 @@
 # Rank Scout (Fabric 1.21.10)
 
 Every time you join Fakepixel it starts by itself: it reads your own profile, then opens the profile of each player
-around you (`/viewprofile <name>`), reads their skills and collections (following the profile's Skills and
+around you (`/viewprofile <name>`), opens each of their profiles from Fakepixel's Select Profile menu, reads their skills and collections (keeping the best value across their profiles, and following the profile's Skills and
 Collections buttons), and closes it. For each skill and collection, a player's value is only kept if it beats yours;
 players who aren't ahead of you in anything aren't stored.
 

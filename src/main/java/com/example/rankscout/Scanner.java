@@ -55,6 +55,11 @@ public final class Scanner {
 
     private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_]{3,16}$");
     private static final int MAX_CLICKS = 14;
+    /** Most profiles read per player (Fakepixel's Select Profile menu lists each one). */
+    private static final int MAX_PROFILES = 4;
+    /** Slot ids of the "View player profile" buttons, and which one we're on. */
+    private static List<Integer> profileSlots = null;
+    private static int profileIdx = 0;
 
     public static void start(MinecraftClient client) {
         if (running) return;
@@ -122,6 +127,8 @@ public final class Scanner {
         collections = new LinkedHashMap<>();
         toVisit.clear();
         visitedButtons.clear();
+        profileSlots = null;
+        profileIdx = 0;
         clicks = 0;
         settle = 0;
         timer = 80;
@@ -133,7 +140,8 @@ public final class Scanner {
 
     private static void work(MinecraftClient client) {
         if (--timer <= 0) {
-            finish(client, true);
+            if (profileSlots != null) nextProfileOrFinish(client);
+            else finish(client, true);
             return;
         }
         if (!(client.currentScreen instanceof HandledScreen<?>)) {
@@ -148,8 +156,20 @@ public final class Scanner {
         // read this page
         pageSig = sig;
         List<Slot> slots = container(client);
-        for (Slot s : slots) Parse.item(s.getStack(), skills, collections);
         if (dumpNext) dump(client, slots);
+
+        // Fakepixel: /viewprofile first shows "Select Profile" with a button per profile: open them one by one
+        List<Integer> profiles = profileButtons(slots);
+        if (!profiles.isEmpty()) {
+            if (profileSlots == null) profileSlots = profiles;
+            if (profileIdx < profileSlots.size()) {
+                clickSlot(client, profileSlots.get(profileIdx));
+                return;
+            }
+            finish(client, false);
+            return;
+        }
+        for (Slot s : slots) Parse.item(s.getStack(), skills, collections);
 
         // queue the Skills / Collections buttons on this page we haven't clicked yet
         toVisit.clear();
@@ -168,10 +188,41 @@ public final class Scanner {
                 clickSlot(client, back.id);
                 return;
             }
-            finish(client, false);
+            nextProfileOrFinish(client);
             return;
         }
         clickSlot(client, toVisit.pollFirst());
+    }
+
+    /** Done with one profile: open the player's next profile (best value per stat is kept), or finish. */
+    private static void nextProfileOrFinish(MinecraftClient client) {
+        if (profileSlots != null && profileIdx + 1 < Math.min(profileSlots.size(), MAX_PROFILES)) {
+            profileIdx++;
+            if (client.currentScreen instanceof HandledScreen<?>) client.player.closeHandledScreen();
+            toVisit.clear();
+            visitedButtons.clear();
+            clicks = 0;
+            settle = 0;
+            timer = 80;
+            pageSig = "";
+            phase = Phase.WAIT_OPEN;
+            client.player.networkHandler.sendChatCommand(RankScoutClient.command + " " + target);
+            return;
+        }
+        finish(client, false);
+    }
+
+    /** "View player profile" buttons (lore "Profile: Pineapple", "Click to view!"). */
+    private static List<Integer> profileButtons(List<Slot> slots) {
+        List<Integer> out = new ArrayList<>();
+        for (Slot sl : slots) {
+            String n = Parse.name(sl.getStack()).toLowerCase(Locale.ROOT);
+            String lore = String.join(" ", Parse.lore(sl.getStack())).toLowerCase(Locale.ROOT);
+            if (n.contains("view player profile") || (lore.contains("profile:") && lore.contains("click to view"))) {
+                out.add(sl.id);
+            }
+        }
+        return out;
     }
 
     private static boolean hasUnvisitedAfterBack() {
