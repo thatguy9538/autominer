@@ -79,6 +79,11 @@ public final class Scanner {
         manual.addLast(name);
     }
 
+    /** A new speed takes effect now: don't keep waiting out a longer old pause. */
+    public static void capCooldown(int ticks) {
+        if (cooldown > ticks) cooldown = ticks;
+    }
+
     public static void dumpNext() {
         dumpNext = true;
     }

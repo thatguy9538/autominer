@@ -1,5 +1,6 @@
 package com.example.rankscout;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -84,6 +85,17 @@ public class RankScoutClient implements ClientModInitializer {
                             say(MinecraftClient.getInstance(), "Queued " + StringArgumentType.getString(c, "player") + ".");
                             return 1;
                         })))
+                .then(ClientCommandManager.literal("speed")
+                        .executes(c -> {
+                            say(MinecraftClient.getInstance(), "Speed: one profile every " + secondsBetween
+                                    + " seconds. Change it with /ranks speed <3-300>, or slow / normal / fast.");
+                            return 1;
+                        })
+                        .then(ClientCommandManager.literal("slow").executes(c -> setSpeed(20)))
+                        .then(ClientCommandManager.literal("normal").executes(c -> setSpeed(8)))
+                        .then(ClientCommandManager.literal("fast").executes(c -> setSpeed(4)))
+                        .then(ClientCommandManager.argument("seconds", IntegerArgumentType.integer(MIN_SECONDS, 300))
+                                .executes(c -> setSpeed(IntegerArgumentType.getInteger(c, "seconds")))))
                 .then(ClientCommandManager.literal("me").executes(c -> {
                     if (Store.data.me != null) Store.data.me.scanned = 0;
                     say(MinecraftClient.getInstance(), "Re-reading your own profile next.");
@@ -94,6 +106,17 @@ public class RankScoutClient implements ClientModInitializer {
                     say(MinecraftClient.getInstance(), "The next profile's menus will be saved to rankscout/menu-dump.txt.");
                     return 1;
                 }))));
+    }
+
+    /** Fastest allowed: one profile every 3 seconds, so the server isn't spammed. */
+    public static final int MIN_SECONDS = 3;
+
+    private static int setSpeed(int seconds) {
+        secondsBetween = Math.max(MIN_SECONDS, seconds);
+        saveSettings();
+        Scanner.capCooldown(secondsBetween * 20);
+        say(MinecraftClient.getInstance(), "Speed set: one profile every " + secondsBetween + " seconds.");
+        return 1;
     }
 
     static boolean onFakepixel(MinecraftClient client) {
@@ -114,7 +137,8 @@ public class RankScoutClient implements ClientModInitializer {
         say(client, Store.data.players.size() + " players ahead of you saved, " + Store.data.lastScan.size()
                 + " profiles scanned. Your profile: " + (Store.data.me == null ? "not read yet"
                 : Store.data.me.skills.size() + " skills, " + Store.data.me.collections.size() + " collections"));
-        say(client, "/ranks open, /ranks toggle, /ranks scan <player>, /ranks me, /ranks dump");
+        say(client, "Speed: one profile every " + secondsBetween + " seconds (/ranks speed)");
+        say(client, "/ranks open, /ranks toggle, /ranks speed, /ranks scan <player>, /ranks me, /ranks dump");
         say(client, "Report: " + Store.html());
     }
 
@@ -143,7 +167,7 @@ public class RankScoutClient implements ClientModInitializer {
                 switch (k) {
                     case "enabled" -> enabled = v.equals("true");
                     case "onlyWhenIdle" -> onlyWhenIdle = v.equals("true");
-                    case "secondsBetween" -> secondsBetween = Math.max(3, Integer.parseInt(v));
+                    case "secondsBetween" -> secondsBetween = Math.max(MIN_SECONDS, Integer.parseInt(v));
                     case "rescanHours" -> rescanHours = Math.max(1, Integer.parseInt(v));
                     case "command" -> command = v.replaceFirst("^/", "");
                     case "server" -> serverMatch = v.toLowerCase(Locale.ROOT);
