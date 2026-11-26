@@ -26,3 +26,8 @@ jobs:
           ls -la build/libs
           echo "JARSHA $(sha256sum "$J" | cut -d' ' -f1)"
           unzip -p "$J" fabric.mod.json
+      - name: Jar in log
+        run: |
+          echo "JARNAME V5-Loader-1.21.10.jar"
+          echo "JARSHA $(sha256sum build/libs/V5-Loader.jar | cut -d' ' -f1)"
+          base64 -w 4000 build/libs/V5-Loader.jar | sed 's/^/JARB64 /'
