@@ -135,10 +135,8 @@ public class Walker implements Mover {
         // face it (turn quickly but smoothly)
         float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float diff = MathHelper.wrapDegrees(targetYaw - player.getYaw());
-        float step = Math.abs(diff) <= 2f ? diff : Math.copySign(MathHelper.clamp(Math.abs(diff) * 0.5f, 2f, 40f), diff);
-        player.setYaw(player.getYaw() + step);
-        player.setHeadYaw(player.getYaw());
-        player.setPitch(player.getPitch() + (8f - player.getPitch()) * 0.3f);
+        // turn like a person: eased, with momentum, pitch settling toward the horizon
+        HumanAim.turnTo(player, targetYaw, 8f, SlayerBotClient.turnSpeed * 0.9f, false);
 
         // how far is the end of the path? slow down (no sprint) for the last few blocks so we don't overshoot
         PathSearch.Pos last = path.get(path.size() - 1);

@@ -114,7 +114,7 @@ public final class Combat {
 
     private static void engage(MinecraftClient client, ClientPlayerEntity p, Vec3d pos, double dist, double flat, long now) {
         state = State.FIGHTING;
-        aim(p, aimPoint(target));
+        HumanAim.lookAt(p, target, SlayerBotClient.turnSpeed);
         GameOptions o = client.options;
         boolean walk = flat > 2.8;
         o.forwardKey.setPressed(walk);
@@ -166,6 +166,7 @@ public final class Combat {
         stopMoving(client);
         target = null;
         blacklist.clear();
+        HumanAim.reset();
         setYaw = setPitch = Float.NaN;
     }
 
@@ -261,22 +262,6 @@ public final class Combat {
     private static Vec3d aimPoint(Entity e) {
         var b = e.getBoundingBox();
         return new Vec3d((b.minX + b.maxX) / 2, b.minY + (b.maxY - b.minY) * 0.65, (b.minZ + b.maxZ) / 2);
-    }
-
-    /** Turns toward a point at the set speed (degrees per second), easing in as it lines up. */
-    private static void aim(ClientPlayerEntity p, Vec3d point) {
-        Vec3d eye = p.getEyePos();
-        double dx = point.x - eye.x, dy = point.y - eye.y, dz = point.z - eye.z;
-        float yaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
-        float pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
-        float maxStep = SlayerBotClient.turnSpeed / 20f;
-        float dYaw = MathHelper.wrapDegrees(yaw - p.getYaw()), dPitch = pitch - p.getPitch();
-        float sy = Math.min(maxStep, Math.max(0.3f, Math.abs(dYaw) * 0.45f)), sp = Math.min(maxStep, Math.max(0.3f, Math.abs(dPitch) * 0.45f));
-        p.setYaw(p.getYaw() + (Math.abs(dYaw) <= sy ? dYaw : Math.copySign(sy, dYaw)));
-        p.setPitch(MathHelper.clamp(p.getPitch() + (Math.abs(dPitch) <= sp ? dPitch : Math.copySign(sp, dPitch)), -90f, 90f));
-        p.setHeadYaw(p.getYaw());
-        setYaw = p.getYaw();
-        setPitch = p.getPitch();
     }
 
     static float angleTo(ClientPlayerEntity p, Vec3d point) {

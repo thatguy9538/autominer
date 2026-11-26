@@ -15,6 +15,10 @@ Stand in the slayer area and run `/slb start` (or bind "Start / stop Slayer Bot"
 `path <5-30>`, `restart` (start the next quest by itself on/off), `button` (left click / right click for ability weapons),
 `hud`, `command <cmd>` (the command that opens the slayer menu). Saved in `config/slayerbot.txt`.
 
+**Camera:** turns like a hand on a mouse: it eases in and out of turns (with a little momentum and overshoot), pitch
+lags yaw so turns curve, it aims at a spot that drifts around the target's body, has a slight hand tremor, and waits
+100-250 ms before reacting to a new target. `turn` sets its top speed.
+
 **Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,
 and stops if you die, run out of coins, or haven't unlocked the tier. It pauses while you have a menu open.
 
