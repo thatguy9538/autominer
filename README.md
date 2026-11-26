@@ -15,6 +15,12 @@ Stand in the slayer area and run `/slb start` (or bind "Start / stop Slayer Bot"
 `path <5-30>`, `restart` (start the next quest by itself on/off), `button` (left click / right click for ability weapons),
 `hud`, `command <cmd>` (the command that opens the slayer menu). Saved in `config/slayerbot.txt`.
 
+**Ability item:** hold an item with a right-click ability (Hyperion, a healing wand...) and run `/slb ability set`.
+The bot switches to it, right-clicks, and switches back to your weapon, with a short human-like pause each way.
+`/slb ability cooldown <ms>` (default 5000), `when <always|boss|lowhp>` (in fights / only on your boss / when your
+health is below `hp <10-90>`%), `range <2-20>` (how close a target must be), `clear`. It reads the server's
+"on cooldown for Xs" and "not enough mana" messages and waits. It doesn't attack while the ability item is in hand.
+
 **Camera:** turns like a hand on a mouse: it eases in and out of turns (sometimes going 1-2 degrees past on a big turn and settling back), pitch
 lags yaw so turns curve, it aims at a spot that drifts around the target's body, has a slight hand tremor, and waits
 100-250 ms before reacting to a new target. `turn` sets its top speed.

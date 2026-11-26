@@ -132,6 +132,52 @@ public class SlayerBotClient implements ClientModInitializer {
                         say(MinecraftClient.getInstance(), "Attack with: " + (rightClick ? "right click (ability weapons)" : "left click"));
                         return 1;
                     }))
+                    .then(ClientCommandManager.literal("ability")
+                            .executes(c -> {
+                                say(MinecraftClient.getInstance(), "Ability item: " + Ability.describe() + ", every " + Ability.cooldownMs
+                                        + " ms, within " + Ability.range + " blocks.");
+                                say(MinecraftClient.getInstance(), "/" + root + " ability set (hold the item) | clear | cooldown <ms>"
+                                        + " | when <always|boss|lowhp> | hp <10-90> | range <2-20>");
+                                return 1;
+                            })
+                            .then(ClientCommandManager.literal("set").executes(c -> {
+                                ClientPlayerEntity p = MinecraftClient.getInstance().player;
+                                String n = p == null ? null : Ability.setFromHand(p);
+                                if (n == null) say(MinecraftClient.getInstance(), "Hold the item first, then run this again.");
+                                else {
+                                    save();
+                                    say(MinecraftClient.getInstance(), "Ability item: " + n + ". Keep it in your hotbar; I'll switch to it,"
+                                            + " right-click and switch back.");
+                                }
+                                return 1;
+                            }))
+                            .then(ClientCommandManager.literal("clear").executes(c -> {
+                                Ability.item = "";
+                                save();
+                                say(MinecraftClient.getInstance(), "No ability item.");
+                                return 1;
+                            }))
+                            .then(ClientCommandManager.literal("when").then(ClientCommandManager.argument("mode", StringArgumentType.word())
+                                    .suggests((ctx, b) -> {
+                                        b.suggest("always");
+                                        b.suggest("boss");
+                                        b.suggest("lowhp");
+                                        return b.buildFuture();
+                                    })
+                                    .executes(c -> {
+                                        String m = StringArgumentType.getString(c, "mode").toUpperCase(Locale.ROOT);
+                                        try {
+                                            Ability.when = Ability.When.valueOf(m.equals("LOW") ? "LOWHP" : m);
+                                            save();
+                                            say(MinecraftClient.getInstance(), "Ability item: " + Ability.describe());
+                                        } catch (IllegalArgumentException e) {
+                                            say(MinecraftClient.getInstance(), "Use always, boss or lowhp.");
+                                        }
+                                        return 1;
+                                    })))
+                            .then(setting(root + " ability", "cooldown", 100, 120000, v -> Ability.cooldownMs = v, () -> Ability.cooldownMs + " ms between uses"))
+                            .then(setting(root + " ability", "hp", 10, 90, v -> Ability.hpPercent = v, () -> "use below " + Ability.hpPercent + "% health (when lowhp)"))
+                            .then(setting(root + " ability", "range", 2, 20, v -> Ability.range = v, () -> "use when a target is within " + Ability.range + " blocks")))
                     .then(ClientCommandManager.literal("hud").executes(c -> {
                         hud = !hud;
                         save();
@@ -228,6 +274,7 @@ public class SlayerBotClient implements ClientModInitializer {
                 status = Combat.target == null ? "Looking for your boss" : "Fighting your boss";
             }
         }
+        Ability.tick(client, Quest.stage == Quest.Stage.BOSS);
         remember(p);
     }
 
@@ -240,6 +287,7 @@ public class SlayerBotClient implements ClientModInitializer {
         if (s == null || !running) return;
         String l = s.toLowerCase(Locale.ROOT);
         MinecraftClient client = MinecraftClient.getInstance();
+        Ability.onChat(l);
         if (l.contains("slayer quest complete")) {
             bosses++;
             restartDelay = 40;
@@ -273,6 +321,7 @@ public class SlayerBotClient implements ClientModInitializer {
     public static void stop(MinecraftClient client, String why) {
         if (!running) return;
         running = false;
+        Ability.reset(client);
         Combat.reset(client);
         Starter.reset();
         status = "Off";
@@ -299,6 +348,7 @@ public class SlayerBotClient implements ClientModInitializer {
         lines.add(status);
         if (Quest.stage == Quest.Stage.XP && Quest.need > 0) lines.add("XP " + Quest.have + " / " + Quest.need);
         lines.add("Target: " + Combat.describe(mc) + "  (" + Combat.found + " found)");
+        if (!Ability.item.isEmpty()) lines.add("Ability: " + Ability.describe());
         long mins = Math.max(1, (System.currentTimeMillis() - startedAt) / 60000);
         lines.add("Bosses: " + bosses + "  (" + String.format("%.1f", bosses * 60.0 / mins) + "/h)");
         int w = 0;
@@ -321,7 +371,7 @@ public class SlayerBotClient implements ClientModInitializer {
         say(c, (running ? "Running: " + status : "Off") + ". Slayer: " + type.boss + " " + Quest.roman(tier)
                 + ", " + cps + " CPS, turn " + turnSpeed + "/s, leash " + leash + ", restart " + (autoRestart ? "ON" : "OFF"));
         say(c, "/slb start | stop | type <slayer> | tier <1-5> | cps <5-15> | turn <100-800> | leash <10-80> | here"
-                + " | path <5-30> | restart | button | hud | command <cmd>");
+                + " | path <5-30> | restart | button | ability | hud | command <cmd>");
     }
 
     private static Path file() {
@@ -350,6 +400,11 @@ public class SlayerBotClient implements ClientModInitializer {
                         case "rightClick" -> rightClick = v.equals("true");
                         case "startCommand" -> startCommand = v.replaceFirst("^/", "");
                         case "hud" -> hud = v.equals("true");
+                        case "abilityItem" -> Ability.item = v;
+                        case "abilityCooldownMs" -> Ability.cooldownMs = Math.max(100, Math.min(120000, Integer.parseInt(v)));
+                        case "abilityWhen" -> Ability.when = Ability.When.valueOf(v);
+                        case "abilityHp" -> Ability.hpPercent = Math.max(10, Math.min(90, Integer.parseInt(v)));
+                        case "abilityRange" -> Ability.range = Math.max(2, Math.min(20, Integer.parseInt(v)));
                         default -> { }
                     }
                 } catch (Exception ignored) {
@@ -365,7 +420,9 @@ public class SlayerBotClient implements ClientModInitializer {
             Files.writeString(file(), "# Slayer Bot settings\ntype=" + type + "\ntier=" + tier + "\ncps=" + cps
                     + "\nturnSpeed=" + turnSpeed + "\npathThreshold=" + pathThreshold + "\nleash=" + leash
                     + "\nautoRestart=" + autoRestart + "\nrightClick=" + rightClick + "\nstartCommand=" + startCommand
-                    + "\nhud=" + hud + "\n", StandardCharsets.UTF_8);
+                    + "\nhud=" + hud + "\n# right-click ability item (name, without colors; empty = none)\nabilityItem=" + Ability.item
+                    + "\nabilityCooldownMs=" + Ability.cooldownMs + "\n# ALWAYS, BOSS or LOWHP\nabilityWhen=" + Ability.when
+                    + "\nabilityHp=" + Ability.hpPercent + "\nabilityRange=" + Ability.range + "\n", StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOG.warn("Couldn't save settings", e);
         }

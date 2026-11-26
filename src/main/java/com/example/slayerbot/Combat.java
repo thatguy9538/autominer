@@ -121,8 +121,8 @@ public final class Combat {
         o.sprintKey.setPressed(walk);
         o.jumpKey.setPressed(p.isOnGround() && (pos.y - p.getY() > 1.5 || (walk && p.horizontalCollision)));
 
-        // attack
-        if (dist > ATTACK_REACH + 0.35 || now < nextAttackAt) return;
+        // attack (not while the ability item is in your hand)
+        if (Ability.busy() || dist > ATTACK_REACH + 0.35 || now < nextAttackAt) return;
         boolean onTarget = client.crosshairTarget instanceof EntityHitResult eh && eh.getEntity() == target;
         if (SlayerBotClient.rightClick) {
             if (angleTo(p, aimPoint(target)) > 12) return;
