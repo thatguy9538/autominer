@@ -21,9 +21,17 @@ The bot switches to it, right-clicks, and switches back to your weapon, with a s
 health is below `hp <10-90>`%), `range <2-20>` (how close a target must be), `clear`. It reads the server's
 "on cooldown for Xs" and "not enough mana" messages and waits. It doesn't attack while the ability item is in hand.
 
-**Camera:** turns like a hand on a mouse: it eases in and out of turns (sometimes going 1-2 degrees past on a big turn and settling back), pitch
-lags yaw so turns curve, it aims at a spot that drifts around the target's body, has a slight hand tremor, and waits
-100-250 ms before reacting to a new target. `turn` sets its top speed.
+**Camera:** modelled on how people actually aim, from motor-control research plus open-source aiming code:
+* a new target is noticed after a human reaction time (ex-Gaussian, ~190 ms + a random tail);
+* turns follow the minimum-jerk path (Flash & Hogan), with a duration from Fitts's law (bigger turns and smaller
+  targets take longer); the first move lands near the target, usually a little short or past, then a short pause
+  and a smaller correction;
+* paths curve: pitch starts slightly after yaw, plus WindMouse's "wind" (Benjamin Land, GPL-3.0);
+* moving targets get smooth pursuit (follows their motion with a slight lag) with catch-up flicks on top;
+* slow drift, faint tremor and rare tiny hesitations;
+* the aim point wanders inside the hitbox using LiquidBounce's Gaussian aim-point constants (GPL-3.0);
+* every turn is snapped to whole steps of your mouse sensitivity, like real mouse input.
+`turn` sets its top speed (default 400 degrees per second).
 
 **Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,
 and stops if you die, run out of coins, or haven't unlocked the tier. It pauses while you have a menu open.
@@ -34,3 +42,6 @@ Limits: Inferno Demonlord's dagger attunement and Voidgloom's beacons aren't han
 GPL-3.0 (see LICENSE). The fighting logic (target scoring, reach, path-finding hand-off, re-path and blacklist rules,
 attack timing jitter) is adapted from V5's CombatBot, https://github.com/V5-Client/V5 (GPL-3.0).
 Walking uses the route-planner from Auto Miner.
+Camera: WindMouse by Benjamin Land (GPL-3.0, https://ben.land/post/2021/04/25/windmouse-human-mouse-movement/);
+aim-point Gaussian constants, the lazy aim point, short stops and sensitivity snapping adapted from LiquidBounce
+(GPL-3.0, https://github.com/CCBlueX/LiquidBounce).
