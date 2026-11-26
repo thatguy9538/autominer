@@ -38,9 +38,12 @@ public final class HumanAim {
     private static final double P1 = RNG.nextDouble() * 6.28, P2 = RNG.nextDouble() * 6.28, P3 = RNG.nextDouble() * 6.28;
     private static long t = 0;
     private static Entity lastTarget = null;
+    /** Planned overshoot for the current big turn (degrees past the target), and the last error seen. */
+    private static float ovYaw = 0, ovPitch = 0, lastOff = 0;
 
     public static void reset() {
         vYaw = vPitch = 0;
+        ovYaw = ovPitch = lastOff = 0;
         lastTarget = null;
         reactTicks = 0;
     }
@@ -84,6 +87,19 @@ public final class HumanAim {
         float eYaw = MathHelper.wrapDegrees(yaw - p.getYaw());
         float ePitch = pitch - p.getPitch();
         float off = (float) Math.sqrt(eYaw * eYaw + ePitch * ePitch);
+
+        // a new big turn (the error jumped past 25 degrees): sometimes plan to go 3-7% past and come back
+        if (off > 25 && lastOff < 10) {
+            boolean over = RNG.nextFloat() < 0.4f;
+            float f = over ? 0.03f + RNG.nextFloat() * 0.04f : 0f;
+            ovYaw = eYaw * f;
+            ovPitch = ePitch * f * 0.5f;
+        }
+        lastOff = off;
+        if (Math.abs(eYaw) < 2) ovYaw *= 0.6f;          // reached it: let the overshoot settle back
+        if (Math.abs(ePitch) < 2) ovPitch *= 0.6f;
+        eYaw += ovYaw;
+        ePitch += ovPitch;
 
         if (reactTicks > 0) {                          // still "reacting": just let momentum bleed off
             reactTicks--;
