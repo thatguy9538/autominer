@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "id": "rankscout",
+  "id": "slayerbot",
   "version": "${version}",
-  "name": "Rank Scout",
-  "description": "On Fakepixel, scans the profiles of players around you and keeps, per skill and collection, the ones ahead of you. Writes .minecraft/rankscout/ranks.html. Starts by itself when you join. /ranks",
+  "name": "Slayer Bot",
+  "description": "Runs SkyBlock slayer quests by itself: starts a quest, kills the slayer's mobs, kills your boss and starts the next one. Fighting adapted from V5 (GPL-3.0). /slb",
   "authors": ["You"],
-  "license": "MIT",
+  "contributors": ["V5 contributors (combat logic, GPL-3.0)"],
+  "license": "GPL-3.0",
+  "contact": { "sources": "https://github.com/thatguy9538/autominer/tree/slayer" },
   "environment": "client",
-  "entrypoints": { "client": ["com.example.rankscout.RankScoutClient"] },
+  "entrypoints": { "client": ["com.example.slayerbot.SlayerBotClient"] },
   "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
 }

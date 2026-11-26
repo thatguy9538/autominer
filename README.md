@@ -1,17 +1,26 @@
-# Rank Scout (Fabric 1.21.10)
+# Slayer Bot (Fabric 1.21.10)
 
-Every time you join Fakepixel it starts by itself: it reads your own profile, then opens the profile of each player
-around you (`/viewprofile <name>`), opens each of their profiles from Fakepixel's Select Profile menu, reads their skills and collections (keeping the best value across their profiles, and following the profile's Skills and
-Collections buttons), and closes it. For each skill and collection, a player's value is only kept if it beats yours;
-players who aren't ahead of you in anything aren't stored.
+Runs SkyBlock slayer quests by itself:
+1. Starts a quest: runs `/slayer` and clicks through the menu (collect reward, your slayer, your tier, Confirm).
+   If that command doesn't open a menu, start the quest yourself and it carries on.
+2. Kills the slayer's mobs (zombies, spiders, wolves, endermen or blazes) near where you started, until the boss spawns.
+3. Finds **your** boss (the one under "Spawned by: <you>") and kills it; it never attacks other players' bosses or their minions.
+4. On "SLAYER QUEST COMPLETE!" it starts the next quest.
 
-The report is `.minecraft/rankscout/ranks.html` (open it with `/ranks open`): a table per skill and per collection of
-everyone ahead of you, with you at the bottom, a Players tab, and a search box. Raw data: `rankscout/data.json`.
+## Use
+Stand in the slayer area and run `/slb start` (or bind "Start / stop Slayer Bot" in Controls). `/slb stop` stops.
 
-* Scans only while you stand still (the profile menu shows on your screen), one profile every 8 seconds,
-  and each player at most every 12 hours. Change these in `rankscout/settings.txt`.
-* `/ranks speed` shows the speed; `/ranks speed <seconds>` (3-300) or `slow` (20 s) / `normal` (8 s) / `fast` (4 s) changes it.
-* **Click speed:** `/ranks clickspeed <ms>` (or `slow` 600 / `normal` 200 / `fast` 100) sets how long it waits on each menu before reading it and clicking to the
-  next one (50 = fastest, 200 = default, up to 5000). Also `clickDelayMs` in `rankscout/settings.txt`.
-* `/ranks` status, `/ranks open`, `/ranks toggle` (also a key in Controls), `/ranks scan <player>`, `/ranks me`
-  (re-read your profile), `/ranks dump` (save the next profile's menus to `rankscout/menu-dump.txt`).
+`/slb` shows status and all settings: `type <revenant|tarantula|sven|voidgloom|inferno>`, `tier <1-5>`, `cps <5-15>`,
+`turn <100-800>` (camera speed, degrees per second), `leash <10-80>` (blocks from the start spot), `here` (re-center the leash),
+`path <5-30>`, `restart` (start the next quest by itself on/off), `button` (left click / right click for ability weapons),
+`hud`, `command <cmd>` (the command that opens the slayer menu). Saved in `config/slayerbot.txt`.
+
+**Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,
+and stops if you die, run out of coins, or haven't unlocked the tier. It pauses while you have a menu open.
+
+Limits: Inferno Demonlord's dagger attunement and Voidgloom's beacons aren't handled; Riftstalker isn't supported.
+
+## License
+GPL-3.0 (see LICENSE). The fighting logic (target scoring, reach, path-finding hand-off, re-path and blacklist rules,
+attack timing jitter) is adapted from V5's CombatBot, https://github.com/V5-Client/V5 (GPL-3.0).
+Walking uses the route-planner from Auto Miner.
