@@ -1,0 +1,28 @@
+name: Build V5 Loader (1.21.10)
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew remapJar --no-daemon --stacktrace
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: v5-loader-1.21.10
+          path: build/libs/V5-Loader.jar
+      - name: Jar info
+        run: |
+          J=build/libs/V5-Loader.jar
+          ls -la build/libs
+          echo "JARSHA $(sha256sum "$J" | cut -d' ' -f1)"
+          unzip -p "$J" fabric.mod.json
