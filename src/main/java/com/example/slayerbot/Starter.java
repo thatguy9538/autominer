@@ -71,7 +71,23 @@ public final class Starter {
         client.interactionManager.clickSlot(client.player.currentScreenHandler.syncId, pick.id, 0, SlotActionType.PICKUP, client.player);
     }
 
+    /** Chat said "Unknown command" while we were trying to open the menu: the server has no such command. */
+    public static void unknownCommand(MinecraftClient client) {
+        if (!busy || opened) return;
+        busy = false;
+        String cmd = SlayerBotClient.startCommand;
+        SlayerBotClient.startCommand = "";
+        SlayerBotClient.save();
+        note = "Waiting for the next quest";
+        SlayerBotClient.say(client, "This server has no /" + cmd + ". Fakepixel starts the next quest by itself after each boss,"
+                + " so I'll just wait for it. (Set a command again with /slb command <cmd> if you need one.)");
+    }
+
     public static void start(MinecraftClient client) {
+        if (SlayerBotClient.startCommand.isEmpty()) {          // the server restarts quests itself
+            note = "Waiting for the next quest";
+            return;
+        }
         if (busy || ticks < retryAt || client.player == null) return;
         busy = true;
         opened = false;

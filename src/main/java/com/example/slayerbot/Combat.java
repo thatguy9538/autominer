@@ -116,10 +116,16 @@ public final class Combat {
         state = State.FIGHTING;
         HumanAim.lookAt(p, target, SlayerBotClient.turnSpeed);
         GameOptions o = client.options;
-        boolean walk = flat > 2.8;
+        // only walk once you're actually facing the mob: walking while the camera is still turning
+        // makes you run circles around it
+        double toYaw = Math.toDegrees(Math.atan2(pos.z - p.getZ(), pos.x - p.getX())) - 90.0;
+        float facing = Math.abs(MathHelper.wrapDegrees((float) toYaw - p.getYaw()));
+        boolean walk = flat > 2.8 && facing < 35f;
+        boolean sprint = walk && facing < 15f && flat > 4.5;
         o.forwardKey.setPressed(walk);
-        o.sprintKey.setPressed(walk);
-        o.jumpKey.setPressed(p.isOnGround() && (pos.y - p.getY() > 1.5 || (walk && p.horizontalCollision)));
+        o.sprintKey.setPressed(sprint);
+        o.backKey.setPressed(false);
+        o.jumpKey.setPressed(p.isOnGround() && walk && (pos.y - p.getY() > 1.5 || p.horizontalCollision));
 
         // attack (not while the ability item is in your hand)
         if (Ability.busy() || dist > ATTACK_REACH + 0.35 || now < nextAttackAt) return;

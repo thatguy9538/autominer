@@ -288,9 +288,13 @@ public class SlayerBotClient implements ClientModInitializer {
         String l = s.toLowerCase(Locale.ROOT);
         MinecraftClient client = MinecraftClient.getInstance();
         Ability.onChat(l);
+        if (l.contains("unknown command")) Starter.unknownCommand(client);
+        if (l.contains("slayer quest started")) {
+            restartDelay = 100;                         // the server started the next one itself: let the sidebar catch up
+        }
         if (l.contains("slayer quest complete")) {
             bosses++;
-            restartDelay = 40;
+            restartDelay = Math.max(restartDelay, 60);
             Combat.setTarget(client, null);
         } else if (l.contains("slayer quest failed") || l.contains("quest has been cancelled")) {
             restartDelay = 60;

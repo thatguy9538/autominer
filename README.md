@@ -2,7 +2,8 @@
 
 Runs SkyBlock slayer quests by itself:
 1. Starts a quest: runs `/slayer` and clicks through the menu (collect reward, your slayer, your tier, Confirm).
-   If that command doesn't open a menu, start the quest yourself and it carries on.
+   If that command doesn't open a menu, start the quest yourself and it carries on. On servers like Fakepixel that
+   start the next quest by themselves (and have no /slayer), it notices and just waits for the next quest.
 2. Kills the slayer's mobs (zombies, spiders, wolves, endermen or blazes) near where you started, until the boss spawns.
 3. Finds **your** boss (the one under "Spawned by: <you>") and kills it; it never attacks other players' bosses or their minions.
 4. On "SLAYER QUEST COMPLETE!" it starts the next quest.
