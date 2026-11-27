@@ -3,20 +3,23 @@
 Kills the **Ghosts** in **The Mist** (the bottom of the Dwarven Mines) by itself. Ghosts are invisible charged
 creepers; they drop Sorrow, Volta, Plasma, Ghostly Boots, Bag of Cash and coins, and give lots of Combat XP.
 
-* Finds ghosts near where you started (even though they're invisible) and goes for the best one: close, little turning,
+* Fights **anywhere in The Mist**: it reads the sidebar to know when it's in The Mist, maps the area as it walks,
+  and turns back if it ever wanders out. (`/gb area` switches to staying within a leash of the start spot instead.)
+* Finds ghosts (even though they're invisible) and goes for the best one: close, little turning,
   and standing with other ghosts (so area abilities hit more of them). Skips ghosts another player is fighting.
 * Walks straight to close ones and path-finds to far ones, re-plans when a ghost wanders off, and gives up on ones it
   can't reach for 5 s.
-* When nothing is in range, it walks around the leash area to find new spawns instead of standing still.
+* When nothing is in sight, it heads to where it last saw ghosts, otherwise explores the parts of The Mist it hasn't
+  checked for the longest time, so it covers the whole area instead of standing still.
 * Chains kills quickly: a ghost near the one you just killed is picked up almost immediately.
 * Counts kills (and kills per hour), coins dropped and rare drops on the HUD and in `/gb stats`.
 
 ## Use
-Go down to The Mist, stand in the middle of where you want to fight, and run `/gb start` (or bind
+Go down to The Mist and run `/gb start` (or bind
 "Start / stop Ghost Bot" in Controls). `/gb stop` stops and prints your stats.
 
-`/gb` shows status and all settings: `cps <5-15>`, `turn <100-800>` (camera speed, degrees per second),
-`leash <10-80>` (blocks from the start spot, default 30), `here` (re-center the leash), `path <5-30>`,
+`/gb` shows status and all settings: `area` (all of The Mist, the default / leash only), `cps <5-15>`, `turn <100-800>` (camera speed, degrees per second),
+`leash <10-80>` (blocks from the start spot, only used with `area` off), `here` (re-center the leash), `path <5-30>`,
 `button` (left click / right click for ability weapons), `hud`, `stats`. Saved in `config/ghostbot.txt`.
 
 **Ability item:** hold an item with a right-click ability (a Hyperion or other area weapon, a healing wand...) and run
@@ -40,6 +43,7 @@ below `hp <10-90>`% / when `group <2-10>` ghosts are within `range <2-20>` block
 
 **Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,
 and stops if you die. It pauses while you have a menu open, and warns you if the sidebar doesn't say you're in The Mist.
+If it walks out of The Mist it stops fighting and goes straight back to the last spot that was inside.
 
 Tips: ghosts hit hard and drain your health fast at low gear, so wear good armor (or use a healing ability with
 `when lowhp`). Bots break the rules on most servers, Fakepixel included; you can be banned. Use it at your own risk.

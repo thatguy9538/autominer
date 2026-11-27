@@ -51,6 +51,8 @@ public class GhostBotClient implements ClientModInitializer {
     public static int pathThreshold = 15;       // walk straight in closer than this, path-find further
     public static int leash = 30;               // only fight within this many blocks of where you started
     public static boolean rightClick = false;
+    /** true: fight anywhere in The Mist; false: only within the leash of the start spot. */
+    public static boolean mistArea = true;
     public static boolean hud = true;
 
     // run state
@@ -103,6 +105,13 @@ public class GhostBotClient implements ClientModInitializer {
                         ClientPlayerEntity p = MinecraftClient.getInstance().player;
                         if (p != null) leashCenter = new Vec3d(p.getX(), p.getY(), p.getZ());
                         say(MinecraftClient.getInstance(), "Leash centered here.");
+                        return 1;
+                    }))
+                    .then(ClientCommandManager.literal("area").executes(c -> {
+                        mistArea = !mistArea;
+                        save();
+                        say(MinecraftClient.getInstance(), mistArea ? "Area: all of The Mist (follows the sidebar)."
+                                : "Area: within " + leash + " blocks of where you started (/gb leash, /gb here).");
                         return 1;
                     }))
                     .then(ClientCommandManager.literal("button").executes(c -> {
@@ -230,27 +239,17 @@ public class GhostBotClient implements ClientModInitializer {
         }
         if (!warnedArea && ++areaTicks == 40) {
             warnedArea = true;
-            if (!inMist(client)) say(client, "Heads up: the sidebar doesn't say you're in The Mist. Ghosts only spawn there.");
+            if (!Area.sidebarSaysMist(client)) say(client, mistArea ? "Heads up: the sidebar doesn't say you're in The Mist. Go down there first;"
+                    + " ghosts only spawn in The Mist." : "Heads up: the sidebar doesn't say you're in The Mist. Ghosts only spawn there.");
         }
 
+        Area.tick(client);
         Combat.tick(client, false);
         Ability.tick(client, false);
-        status = Combat.target != null ? "Fighting a ghost"
+        status = mistArea && Area.left ? "Walked out of The Mist - going back"
+                : Combat.target != null ? "Fighting a ghost"
                 : Combat.state == Combat.State.PATHING ? "Looking for ghosts" : "Waiting for spawns";
         remember(p);
-    }
-
-    /** True if the sidebar's location line says The Mist. */
-    private static boolean inMist(MinecraftClient client) {
-        var sb = client.world.getScoreboard();
-        var obj = sb.getObjectiveForSlot(net.minecraft.scoreboard.ScoreboardDisplaySlot.SIDEBAR);
-        if (obj == null) return true;                   // can't tell: don't nag
-        for (var e : sb.getScoreboardEntries(obj)) {
-            var team = sb.getScoreHolderTeam(e.owner());
-            String line = net.minecraft.scoreboard.Team.decorateName(team, e.name()).getString();
-            if (line.toLowerCase(Locale.ROOT).contains("mist")) return true;
-        }
-        return false;
     }
 
     private static void remember(ClientPlayerEntity p) {
@@ -297,7 +296,8 @@ public class GhostBotClient implements ClientModInitializer {
         lastYaw = Float.NaN;
         areaTicks = 0;
         warnedArea = false;
-        say(client, "Started: killing ghosts within " + leash + " blocks of here.");
+        Area.reset();
+        say(client, mistArea ? "Started: killing ghosts anywhere in The Mist." : "Started: killing ghosts within " + leash + " blocks of here.");
     }
 
     public static void stop(MinecraftClient client, String why) {
@@ -312,6 +312,11 @@ public class GhostBotClient implements ClientModInitializer {
 
     public static Vec3d leashCenter() {
         return leashCenter;
+    }
+
+    /** Where ghosts may be fought: anywhere in The Mist, or inside the leash. */
+    public static boolean inArea(Vec3d pos) {
+        return mistArea ? Area.allowed(pos) : inLeash(pos);
     }
 
     public static boolean inLeash(Vec3d pos) {
@@ -333,6 +338,7 @@ public class GhostBotClient implements ClientModInitializer {
         lines.add("Ghost Bot");
         lines.add(status);
         lines.add("Target: " + Combat.describe(mc) + "  (" + Combat.found + " found)");
+        if (mistArea) lines.add(Area.describe());
         if (!Ability.item.isEmpty()) lines.add("Ability: " + Ability.describe());
         double hours = Math.max(1.0 / 60, (System.currentTimeMillis() - startedAt) / 3600000.0);
         lines.add("Kills: " + Combat.kills + "  (" + Math.round(Combat.kills / hours) + "/h)");
@@ -361,7 +367,7 @@ public class GhostBotClient implements ClientModInitializer {
     private static void help(MinecraftClient c) {
         say(c, (running ? "Running: " + status : "Off") + ". " + cps + " CPS, turn " + turnSpeed + "/s, leash " + leash
                 + ", attack with " + (rightClick ? "right" : "left") + " click");
-        say(c, "/gb start | stop | stats | cps <5-15> | turn <100-800> | leash <10-80> | here"
+        say(c, "/gb start | stop | stats | area | cps <5-15> | turn <100-800> | leash <10-80> | here"
                 + " | path <5-30> | button | ability | hud");
     }
 
@@ -395,6 +401,7 @@ public class GhostBotClient implements ClientModInitializer {
                         case "pathThreshold" -> pathThreshold = Math.max(5, Math.min(30, Integer.parseInt(v)));
                         case "leash" -> leash = Math.max(10, Math.min(80, Integer.parseInt(v)));
                         case "rightClick" -> rightClick = v.equals("true");
+                        case "mistArea" -> mistArea = v.equals("true");
                         case "hud" -> hud = v.equals("true");
                         case "abilityItem" -> Ability.item = v;
                         case "abilityCooldownMs" -> Ability.cooldownMs = Math.max(100, Math.min(120000, Integer.parseInt(v)));
@@ -416,7 +423,7 @@ public class GhostBotClient implements ClientModInitializer {
         try {
             Files.writeString(file(), "# Ghost Bot settings\ncps=" + cps
                     + "\nturnSpeed=" + turnSpeed + "\npathThreshold=" + pathThreshold + "\nleash=" + leash
-                    + "\nrightClick=" + rightClick
+                    + "\nrightClick=" + rightClick + "\n# true = anywhere in The Mist, false = within the leash\nmistArea=" + mistArea
                     + "\nhud=" + hud + "\n# right-click ability item (name, without colors; empty = none)\nabilityItem=" + Ability.item
                     + "\nabilityCooldownMs=" + Ability.cooldownMs + "\n# ALWAYS, LOWHP or GROUP\nabilityWhen=" + Ability.when + "\nabilityGroup=" + Ability.group
                     + "\nabilityHp=" + Ability.hpPercent + "\nabilityRange=" + Ability.range + "\n", StandardCharsets.UTF_8);

@@ -75,7 +75,15 @@ public final class Combat {
         long now = System.currentTimeMillis();
         blacklist.values().removeIf(t -> t < now);
 
-        List<Entity> targets = bossStage ? ownBoss(client) : xpMobs(client);
+        if (GhostBotClient.mistArea && Area.left && roamGoal != Area.lastMistPos()) {
+            setTarget(client, null);
+            if (walker != null) walker.stop(client);
+            walker = null;
+            roamGoal = null;
+            idleTicks = 30;
+        }
+        List<Entity> targets = (GhostBotClient.mistArea && Area.left) ? new ArrayList<>()
+                : bossStage ? ownBoss(client) : xpMobs(client);
         found = targets.size();
         if (!targets.isEmpty()) idleTicks = 0;
         if (target != null && (!usable(client, target) || !targets.contains(target))) {
@@ -250,7 +258,7 @@ public final class Combat {
         List<Entity> out = new ArrayList<>();
         for (Entity e : client.world.getEntities()) {
             if (!isGhost(e) || !usable(client, e)) continue;
-            if (!GhostBotClient.inLeash(pos(e))) continue;
+            if (!GhostBotClient.inArea(pos(e))) continue;
             if (Math.abs(e.getY() - client.player.getY()) > 10) continue;
             boolean theirs = false;
             for (Vec3d f : foreign) if (f.squaredDistanceTo(pos(e)) < 16) theirs = true;
@@ -265,6 +273,7 @@ public final class Combat {
                 }
             }
         }
+        Area.saw(out);
         return out;
     }
 
@@ -303,7 +312,7 @@ public final class Combat {
     /** Nothing in range: after a moment, walk to random spots inside the leash to find spawns. */
     private static void roam(MinecraftClient client) {
         idleTicks++;
-        if (idleTicks < 30 || GhostBotClient.leashCenter() == null) {   // give spawns 1.5 s first
+        if (idleTicks < (GhostBotClient.mistArea && Area.left ? 0 : 30) || GhostBotClient.leashCenter() == null) {   // give spawns 1.5 s first
             stopMoving(client);
             return;
         }
@@ -318,9 +327,18 @@ public final class Combat {
                 return;
             }
         }
-        Vec3d c = GhostBotClient.leashCenter();
-        double ang = Math.random() * Math.PI * 2, rad = GhostBotClient.leash * (0.3 + Math.random() * 0.55);
-        roamGoal = new Vec3d(c.x + Math.cos(ang) * rad, c.y, c.z + Math.sin(ang) * rad);
+        if (GhostBotClient.mistArea) {
+            roamGoal = Area.nextGoal(client);
+            if (roamGoal == null) {
+                idleTicks = 20;                         // nowhere good right now: look again in half a second
+                stopMoving(client);
+                return;
+            }
+        } else {
+            Vec3d c = GhostBotClient.leashCenter();
+            double ang = Math.random() * Math.PI * 2, rad = GhostBotClient.leash * (0.3 + Math.random() * 0.55);
+            roamGoal = new Vec3d(c.x + Math.cos(ang) * rad, c.y, c.z + Math.sin(ang) * rad);
+        }
         if (walker != null) walker.stop(client);
         stopKeys(client);
         walker = Walker.to(BlockPos.ofFloored(roamGoal), 3.0);
