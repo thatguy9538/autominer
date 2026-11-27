@@ -166,7 +166,7 @@ public class GhostBotClient implements ClientModInitializer {
                     .then(ClientCommandManager.literal("stats").executes(c -> {
                         stats(MinecraftClient.getInstance());
                         return 1;
-                    }))));
+                    })));
         });
     }
 
