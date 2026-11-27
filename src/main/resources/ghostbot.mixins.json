@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.example.slayerbot.mixin",
+  "package": "com.example.ghostbot.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": ["FrameMixin"],
   "injectors": { "defaultRequire": 1 }

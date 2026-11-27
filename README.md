@@ -1,28 +1,29 @@
-# Slayer Bot (Fabric 1.21.10)
+# Ghost Bot (Fabric 1.21.10)
 
-Runs SkyBlock slayer quests by itself:
-1. Starts a quest: runs `/slayer` and clicks through the menu (collect reward, your slayer, your tier, Confirm).
-   If that command doesn't open a menu, start the quest yourself and it carries on. On servers like Fakepixel that
-   start the next quest by themselves (and have no /slayer), it notices and just waits for the next quest.
-2. Kills the slayer's mobs (zombies, spiders, wolves, endermen or blazes) near where you started, until the boss spawns.
-   To spawn bosses faster it prefers mobs standing in groups and higher-level mobs (read from their nametags),
-   walks around the leash area looking for spawns when nothing is in range, and reacts faster when chaining kills.
-3. Finds **your** boss (the one under "Spawned by: <you>") and kills it; it never attacks other players' bosses or their minions.
-4. On "SLAYER QUEST COMPLETE!" it starts the next quest.
+Kills the **Ghosts** in **The Mist** (the bottom of the Dwarven Mines) by itself. Ghosts are invisible charged
+creepers; they drop Sorrow, Volta, Plasma, Ghostly Boots, Bag of Cash and coins, and give lots of Combat XP.
+
+* Finds ghosts near where you started (even though they're invisible) and goes for the best one: close, little turning,
+  and standing with other ghosts (so area abilities hit more of them). Skips ghosts another player is fighting.
+* Walks straight to close ones and path-finds to far ones, re-plans when a ghost wanders off, and gives up on ones it
+  can't reach for 5 s.
+* When nothing is in range, it walks around the leash area to find new spawns instead of standing still.
+* Chains kills quickly: a ghost near the one you just killed is picked up almost immediately.
+* Counts kills (and kills per hour), coins dropped and rare drops on the HUD and in `/gb stats`.
 
 ## Use
-Stand in the slayer area and run `/slb start` (or bind "Start / stop Slayer Bot" in Controls). `/slb stop` stops.
+Go down to The Mist, stand in the middle of where you want to fight, and run `/gb start` (or bind
+"Start / stop Ghost Bot" in Controls). `/gb stop` stops and prints your stats.
 
-`/slb` shows status and all settings: `type <revenant|tarantula|sven|voidgloom|inferno>`, `tier <1-5>`, `cps <5-15>`,
-`turn <100-800>` (camera speed, degrees per second), `leash <10-80>` (blocks from the start spot), `here` (re-center the leash),
-`path <5-30>`, `restart` (start the next quest by itself on/off), `button` (left click / right click for ability weapons),
-`hud`, `command <cmd>` (the command that opens the slayer menu). Saved in `config/slayerbot.txt`.
+`/gb` shows status and all settings: `cps <5-15>`, `turn <100-800>` (camera speed, degrees per second),
+`leash <10-80>` (blocks from the start spot, default 30), `here` (re-center the leash), `path <5-30>`,
+`button` (left click / right click for ability weapons), `hud`, `stats`. Saved in `config/ghostbot.txt`.
 
-**Ability item:** hold an item with a right-click ability (Hyperion, a healing wand...) and run `/slb ability set`.
-The bot switches to it, right-clicks, and switches back to your weapon, with a short human-like pause each way.
-`/slb ability cooldown <ms>` (default 5000), `when <always|boss|lowhp|group>` (in fights / only on your boss / when your
-health is below `hp <10-90>`% / when `group <2-10>` mobs are close, and on the boss: best for area weapons), `range <2-20>` (how close a target must be), `clear`. It reads the server's
-"on cooldown for Xs" and "not enough mana" messages and waits. It doesn't attack while the ability item is in hand.
+**Ability item:** hold an item with a right-click ability (a Hyperion or other area weapon, a healing wand...) and run
+`/gb ability set`. The bot switches to it, right-clicks, and switches back to your weapon, with a short human-like pause
+each way. `/gb ability cooldown <ms>` (default 5000), `when <always|lowhp|group>` (in fights / when your health is
+below `hp <10-90>`% / when `group <2-10>` ghosts are within `range <2-20>` blocks: the default, best for area weapons),
+`clear`. It reads the server's "on cooldown for Xs" and "not enough mana" messages and waits.
 
 **Camera:** modelled on how people actually aim, from motor-control research plus open-source aiming code:
 * a new target is noticed after a human reaction time (ex-Gaussian, ~190 ms + a random tail);
@@ -38,9 +39,10 @@ health is below `hp <10-90>`% / when `group <2-10>` mobs are close, and on the b
 `turn` sets its top speed (default 400 degrees per second).
 
 **Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,
-and stops if you die, run out of coins, or haven't unlocked the tier. It pauses while you have a menu open.
+and stops if you die. It pauses while you have a menu open, and warns you if the sidebar doesn't say you're in The Mist.
 
-Limits: Inferno Demonlord's dagger attunement and Voidgloom's beacons aren't handled; Riftstalker isn't supported.
+Tips: ghosts hit hard and drain your health fast at low gear, so wear good armor (or use a healing ability with
+`when lowhp`). Bots break the rules on most servers, Fakepixel included; you can be banned. Use it at your own risk.
 
 ## License
 GPL-3.0 (see LICENSE). The fighting logic (target scoring, reach, path-finding hand-off, re-path and blacklist rules,

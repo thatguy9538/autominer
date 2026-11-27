@@ -1,4 +1,4 @@
-package com.example.slayerbot;
+package com.example.ghostbot;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -6,6 +6,7 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
@@ -50,6 +51,9 @@ public final class Combat {
     public static Entity target = null;
     /** How many targets the last scan found (for the HUD). */
     public static int found = 0;
+    /** Ghosts killed since the bot was started. */
+    public static int kills = 0;
+    private static long lastHitAt = 0;
     private static final Map<Entity, Integer> levels = new HashMap<>();
     private static final Pattern LEVEL = Pattern.compile("lv\\.?\\s*(\\d+)");
     private static int idleTicks = 0;
@@ -64,7 +68,7 @@ public final class Combat {
 
     /**
      * One tick of fighting. In the boss stage only your own boss is a target; otherwise the
-     * slayer's XP mobs inside the leash.
+     * ghosts inside the leash.
      */
     public static void tick(MinecraftClient client, boolean bossStage) {
         ClientPlayerEntity p = client.player;
@@ -74,7 +78,11 @@ public final class Combat {
         List<Entity> targets = bossStage ? ownBoss(client) : xpMobs(client);
         found = targets.size();
         if (!targets.isEmpty()) idleTicks = 0;
-        if (target != null && (!usable(client, target) || !targets.contains(target))) setTarget(client, null);
+        if (target != null && (!usable(client, target) || !targets.contains(target))) {
+            boolean died = target instanceof LivingEntity le && (le.isDead() || le.getHealth() <= 0);
+            if (died || (target.isRemoved() && now - lastHitAt < 1500)) kills++;
+            setTarget(client, null);
+        }
         if (target == null) {
             setTarget(client, best(p, targets, bossStage));
             if (target == null) {
@@ -116,7 +124,7 @@ public final class Combat {
             }
         }
 
-        int threshold = SlayerBotClient.pathThreshold + (state == State.FIGHTING ? 2 : 0);
+        int threshold = GhostBotClient.pathThreshold + (state == State.FIGHTING ? 2 : 0);
         if (flat > threshold || (dist > ATTACK_REACH && !p.canSee(target))) {
             startPath(client, pos);
             return;
@@ -126,7 +134,7 @@ public final class Combat {
 
     private static void engage(MinecraftClient client, ClientPlayerEntity p, Vec3d pos, double dist, double flat, long now) {
         state = State.FIGHTING;
-        HumanAim.lookAt(p, target, SlayerBotClient.turnSpeed);
+        HumanAim.lookAt(p, target, GhostBotClient.turnSpeed);
         GameOptions o = client.options;
         // only walk once you're actually facing the mob: walking while the camera is still turning
         // makes you run circles around it
@@ -142,7 +150,7 @@ public final class Combat {
         // attack (not while the ability item is in your hand)
         if (Ability.busy() || dist > ATTACK_REACH + 0.35 || now < nextAttackAt) return;
         boolean onTarget = client.crosshairTarget instanceof EntityHitResult eh && eh.getEntity() == target;
-        if (SlayerBotClient.rightClick) {
+        if (GhostBotClient.rightClick) {
             if (angleTo(p, aimPoint(target)) > 12) return;
             client.interactionManager.interactItem(p, Hand.MAIN_HAND);
         } else {
@@ -150,8 +158,9 @@ public final class Combat {
             client.interactionManager.attackEntity(p, target);
         }
         p.swingHand(Hand.MAIN_HAND);
+        lastHitAt = now;
         double jitter = 0.82 + Math.random() * 0.36;
-        nextAttackAt = now + Math.round(1000.0 / SlayerBotClient.cps * jitter);
+        nextAttackAt = now + Math.round(1000.0 / GhostBotClient.cps * jitter);
     }
 
     private static void startPath(MinecraftClient client, Vec3d pos) {
@@ -224,9 +233,8 @@ public final class Combat {
         return best;
     }
 
-    /** XP mobs of the chosen slayer inside the leash, not anyone else's boss or its minions. */
+    /** Ghosts inside the leash, not ones another player is standing on. */
     private static List<Entity> xpMobs(MinecraftClient client) {
-        Quest.Type type = SlayerBotClient.type;
         List<Vec3d> foreign = new ArrayList<>();
         String me = client.player.getGameProfile().name().toLowerCase(Locale.ROOT);
         for (Entity e : client.world.getEntities()) {
@@ -241,8 +249,8 @@ public final class Combat {
         }
         List<Entity> out = new ArrayList<>();
         for (Entity e : client.world.getEntities()) {
-            if (!type.mob.test(e) || !usable(client, e)) continue;
-            if (!SlayerBotClient.inLeash(pos(e))) continue;
+            if (!isGhost(e) || !usable(client, e)) continue;
+            if (!GhostBotClient.inLeash(pos(e))) continue;
             if (Math.abs(e.getY() - client.player.getY()) > 10) continue;
             boolean theirs = false;
             for (Vec3d f : foreign) if (f.squaredDistanceTo(pos(e)) < 16) theirs = true;
@@ -268,7 +276,7 @@ public final class Combat {
         Entity best = null;
         double bestD = Double.MAX_VALUE;
         for (Entity e : client.world.getEntities()) {
-            if (!(e instanceof MobEntity) || !usable(client, e) || !SlayerBotClient.type.mob.test(e)) continue;
+            if (!(e instanceof MobEntity) || !usable(client, e) || !isGhost(e)) continue;
             double flat = Math.sqrt(sq(e.getX() - tag.getX()) + sq(e.getZ() - tag.getZ()));
             double dy = tag.getY() - e.getY();
             if (flat > NAMETAG_RANGE || dy < -1 || dy > 5) continue;
@@ -295,7 +303,7 @@ public final class Combat {
     /** Nothing in range: after a moment, walk to random spots inside the leash to find spawns. */
     private static void roam(MinecraftClient client) {
         idleTicks++;
-        if (idleTicks < 30 || SlayerBotClient.leashCenter() == null) {   // give spawns 1.5 s first
+        if (idleTicks < 30 || GhostBotClient.leashCenter() == null) {   // give spawns 1.5 s first
             stopMoving(client);
             return;
         }
@@ -310,8 +318,8 @@ public final class Combat {
                 return;
             }
         }
-        Vec3d c = SlayerBotClient.leashCenter();
-        double ang = Math.random() * Math.PI * 2, rad = SlayerBotClient.leash * (0.3 + Math.random() * 0.55);
+        Vec3d c = GhostBotClient.leashCenter();
+        double ang = Math.random() * Math.PI * 2, rad = GhostBotClient.leash * (0.3 + Math.random() * 0.55);
         roamGoal = new Vec3d(c.x + Math.cos(ang) * rad, c.y, c.z + Math.sin(ang) * rad);
         if (walker != null) walker.stop(client);
         stopKeys(client);
@@ -319,11 +327,11 @@ public final class Combat {
         state = State.PATHING;
     }
 
-    /** How many of the slayer's mobs are within this many blocks of you (for the ability's group mode). */
+    /** How many of ghosts are within this many blocks of you (for the ability's group mode). */
     public static int nearby(MinecraftClient client, double range) {
         int n = 0;
         for (Entity e : client.world.getEntities()) {
-            if (SlayerBotClient.type.mob.test(e) && usable(client, e) && client.player.distanceTo(e) <= range) n++;
+            if (isGhost(e) && usable(client, e) && client.player.distanceTo(e) <= range) n++;
         }
         return n;
     }
@@ -332,6 +340,11 @@ public final class Combat {
         if (!(e instanceof ArmorStandEntity) || e.getCustomName() == null) return "";
         String s = Formatting.strip(e.getCustomName().getString());
         return s == null ? "" : s.toLowerCase(Locale.ROOT).trim();
+    }
+
+    /** Ghosts are (invisible, charged) creepers in The Mist. */
+    public static boolean isGhost(Entity e) {
+        return e instanceof CreeperEntity;
     }
 
     private static boolean usable(MinecraftClient client, Entity e) {

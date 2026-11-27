@@ -1,4 +1,4 @@
-package com.example.slayerbot;
+package com.example.ghostbot;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -13,25 +13,25 @@ import java.util.regex.Pattern;
 
 /**
  * Uses a chosen item's right-click ability: switches to it, right-clicks, switches back to the
- * weapon you were holding. How often (cooldown) and when (always / boss only / low health) are settings.
+ * weapon you were holding. How often (cooldown) and when (always / low health / a group close by) are settings.
  */
 public final class Ability {
 
     private Ability() {
     }
 
-    public enum When { ALWAYS, BOSS, LOWHP, GROUP }
+    public enum When { ALWAYS, LOWHP, GROUP }
 
-    // settings (saved by SlayerBotClient)
+    // settings (saved by GhostBotClient)
     /** Name of the item (without colors), "" = no ability item. */
     public static String item = "";
     public static int cooldownMs = 5000;
-    public static When when = When.ALWAYS;
+    public static When when = When.GROUP;
     /** For LOWHP: use it below this % of your health. */
     public static int hpPercent = 50;
-    /** Only use it while a target is this close (ALWAYS / BOSS). */
+    /** Only use it while a target is this close (ALWAYS). */
     public static int range = 8;
-    /** For GROUP: use it when at least this many mobs are within range (always on the boss). */
+    /** For GROUP: use it when at least this many mobs are within range . */
     public static int group = 3;
 
     private enum Phase { IDLE, SWAPPED, USED }
@@ -58,7 +58,7 @@ public final class Ability {
                 int slot = findSlot(p);
                 if (slot < 0) {
                     if (!warnedMissing) {
-                        SlayerBotClient.say(client, "Can't find \"" + item + "\" in your hotbar, so I'm not using its ability.");
+                        GhostBotClient.say(client, "Can't find \"" + item + "\" in your hotbar, so I'm not using its ability.");
                         warnedMissing = true;
                     }
                     readyAt = System.currentTimeMillis() + 10_000;
@@ -90,9 +90,8 @@ public final class Ability {
     private static boolean shouldUse(MinecraftClient client, ClientPlayerEntity p, boolean bossStage) {
         return switch (when) {
             case LOWHP -> p.getHealth() / p.getMaxHealth() * 100f < hpPercent;
-            case BOSS -> bossStage && targetClose(client, p);
             case ALWAYS -> targetClose(client, p);
-            case GROUP -> bossStage ? targetClose(client, p) : Combat.nearby(client, range) >= group;
+            case GROUP -> Combat.nearby(client, range) >= group;
         };
     }
 
@@ -148,8 +147,7 @@ public final class Ability {
         long left = readyAt - System.currentTimeMillis();
         String w = switch (when) {
             case ALWAYS -> "in fights";
-            case GROUP -> group + "+ mobs close, or the boss";
-            case BOSS -> "on the boss";
+            case GROUP -> group + "+ ghosts within " + range + " blocks";
             case LOWHP -> "below " + hpPercent + "% HP";
         };
         return item + " (" + w + ", " + (left > 0 ? String.format("%.1fs", left / 1000.0) : "ready") + ")";

@@ -1,4 +1,4 @@
-package com.example.slayerbot;
+package com.example.ghostbot;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -136,7 +136,7 @@ public class Walker implements Mover {
         float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float diff = MathHelper.wrapDegrees(targetYaw - player.getYaw());
         // turn like a person: eased, with momentum, pitch settling toward the horizon
-        HumanAim.turnTo(player, targetYaw, 8f, SlayerBotClient.turnSpeed * 0.9f, false);
+        HumanAim.turnTo(player, targetYaw, 8f, GhostBotClient.turnSpeed * 0.9f, false);
 
         // how far is the end of the path? slow down (no sprint) for the last few blocks so we don't overshoot
         PathSearch.Pos last = path.get(path.size() - 1);

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "slayerbot",
+  "id": "ghostbot",
   "version": "${version}",
-  "name": "Slayer Bot",
-  "description": "Runs SkyBlock slayer quests by itself: starts a quest, kills the slayer's mobs, kills your boss and starts the next one. Fighting adapted from V5 (GPL-3.0). /slb",
+  "name": "Ghost Bot",
+  "description": "Kills the Ghosts in The Mist (Dwarven Mines) by itself, with human-like aiming, path-finding, roaming, an ability item, and a kill / drop tracker. Fighting adapted from V5 (GPL-3.0). /gb",
   "authors": [
     "You"
   ],
@@ -12,12 +12,12 @@
   ],
   "license": "GPL-3.0",
   "contact": {
-    "sources": "https://github.com/thatguy9538/autominer/tree/slayer"
+    "sources": "https://github.com/thatguy9538/autominer/tree/ghost"
   },
   "environment": "client",
   "entrypoints": {
     "client": [
-      "com.example.slayerbot.SlayerBotClient"
+      "com.example.ghostbot.GhostBotClient"
     ]
   },
   "depends": {
@@ -27,6 +27,6 @@
     "fabric-api": "*"
   },
   "mixins": [
-    "slayerbot.mixins.json"
+    "ghostbot.mixins.json"
   ]
 }

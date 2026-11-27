@@ -1,4 +1,4 @@
-package com.example.slayerbot;
+package com.example.ghostbot;
 
 import java.util.ArrayList;
 import java.util.Collections;

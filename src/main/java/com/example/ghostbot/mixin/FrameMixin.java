@@ -1,6 +1,6 @@
-package com.example.slayerbot.mixin;
+package com.example.ghostbot.mixin;
 
-import com.example.slayerbot.Glide;
+import com.example.ghostbot.Glide;
 import net.minecraft.client.MinecraftClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftClient.class)
 public abstract class FrameMixin {
     @Inject(method = "render", at = @At("HEAD"))
-    private void slayerbot$frame(boolean tick, CallbackInfo ci) {
+    private void ghostbot$frame(boolean tick, CallbackInfo ci) {
         Glide.frame();
     }
 }
