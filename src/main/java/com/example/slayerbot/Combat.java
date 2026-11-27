@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Fighting: pick a target, turn to it smoothly, walk or path-find to it, and attack at the set
@@ -48,6 +50,10 @@ public final class Combat {
     public static Entity target = null;
     /** How many targets the last scan found (for the HUD). */
     public static int found = 0;
+    private static final Map<Entity, Integer> levels = new HashMap<>();
+    private static final Pattern LEVEL = Pattern.compile("lv\\.?\\s*(\\d+)");
+    private static int idleTicks = 0;
+    private static Vec3d roamGoal = null;
 
     private static Walker walker = null;
     private static Vec3d pathTarget = null;
@@ -67,16 +73,22 @@ public final class Combat {
 
         List<Entity> targets = bossStage ? ownBoss(client) : xpMobs(client);
         found = targets.size();
+        if (!targets.isEmpty()) idleTicks = 0;
         if (target != null && (!usable(client, target) || !targets.contains(target))) setTarget(client, null);
         if (target == null) {
-            setTarget(client, best(p, targets));
+            setTarget(client, best(p, targets, bossStage));
             if (target == null) {
-                // the boss may not be in range yet: walk to your "Spawned by" tag if you can see it
-                Entity tag = bossStage ? ownTag(client) : null;
-                if (tag != null && p.distanceTo(tag) > 6) startPath(client, pos(tag));
-                else stopMoving(client);
+                if (bossStage) {
+                    // the boss may not be in range yet: walk to your "Spawned by" tag if you can see it
+                    Entity tag = ownTag(client);
+                    if (tag != null && p.distanceTo(tag) > 6) startPath(client, pos(tag));
+                    else stopMoving(client);
+                } else {
+                    roam(client);                       // nothing in range: go look for spawns instead of waiting
+                }
                 return;
             }
+            roamGoal = null;
         }
 
         Vec3d pos = pos(target);
@@ -171,6 +183,8 @@ public final class Combat {
     public static void reset(MinecraftClient client) {
         stopMoving(client);
         target = null;
+        roamGoal = null;
+        idleTicks = 0;
         blacklist.clear();
         HumanAim.reset();
         setYaw = setPitch = Float.NaN;
@@ -185,13 +199,23 @@ public final class Combat {
 
     // ------------------------------------------------------------------ choosing targets
 
-    /** V5's score: distance plus a little for every degree you'd have to turn. */
-    private static Entity best(ClientPlayerEntity p, List<Entity> list) {
+    /**
+     * V5's score (distance plus a little for every degree you'd have to turn), and for XP mobs a
+     * bonus for standing in a group (more kills per trip) and for a higher level (more XP per kill).
+     */
+    private static Entity best(ClientPlayerEntity p, List<Entity> list, boolean bossStage) {
         Entity best = null;
         double bestScore = Double.MAX_VALUE;
         for (Entity e : list) {
             if (blacklist.containsKey(e.getUuid())) continue;
             double score = p.distanceTo(e) + angleTo(p, aimPoint(e)) * 0.025;
+            if (!bossStage) {
+                int group = 0;
+                for (Entity o : list) if (o != e && o.squaredDistanceTo(e) < 16) group++;
+                score -= 1.0 * Math.min(group, 6);
+                Integer lvl = levels.get(e);
+                if (lvl != null && lvl > 0) score -= 0.6 * (Math.log(lvl + 1) / Math.log(2));
+            }
             if (score < bestScore) {
                 bestScore = score;
                 best = e;
@@ -209,6 +233,12 @@ public final class Combat {
             String tag = tagOf(e);
             if (tag.startsWith("spawned by") && !tag.contains(me)) foreign.add(pos(e));
         }
+        // levels from the nametags floating above mobs ("[Lv12] Spider 160/160")
+        levels.clear();
+        List<Entity> tags = new ArrayList<>();
+        for (Entity e : client.world.getEntities()) {
+            if (e instanceof ArmorStandEntity && e.getCustomName() != null && tagOf(e).contains("lv")) tags.add(e);
+        }
         List<Entity> out = new ArrayList<>();
         for (Entity e : client.world.getEntities()) {
             if (!type.mob.test(e) || !usable(client, e)) continue;
@@ -216,7 +246,16 @@ public final class Combat {
             if (Math.abs(e.getY() - client.player.getY()) > 10) continue;
             boolean theirs = false;
             for (Vec3d f : foreign) if (f.squaredDistanceTo(pos(e)) < 16) theirs = true;
-            if (!theirs) out.add(e);
+            if (theirs) continue;
+            out.add(e);
+            for (Entity t : tags) {
+                double fx = t.getX() - e.getX(), fz = t.getZ() - e.getZ(), dy = t.getY() - e.getY();
+                if (fx * fx + fz * fz < 1.5 * 1.5 && dy > -0.5 && dy < 3.5) {
+                    Matcher m = LEVEL.matcher(tagOf(t));
+                    if (m.find()) levels.put(e, Integer.parseInt(m.group(1)));
+                    break;
+                }
+            }
         }
         return out;
     }
@@ -249,6 +288,44 @@ public final class Combat {
             if (tag.startsWith("spawned by") && tag.contains(me)) return e;
         }
         return null;
+    }
+
+    // ------------------------------------------------------------------ roaming
+
+    /** Nothing in range: after a moment, walk to random spots inside the leash to find spawns. */
+    private static void roam(MinecraftClient client) {
+        idleTicks++;
+        if (idleTicks < 30 || SlayerBotClient.leashCenter() == null) {   // give spawns 1.5 s first
+            stopMoving(client);
+            return;
+        }
+        if (roamGoal != null && walker != null) {
+            Walker.Result r = walker.tick(client);
+            if (r == Walker.Result.WALKING) return;
+            walker.stop(client);
+            walker = null;
+            roamGoal = null;
+            if (r == Walker.Result.FAILED) {
+                idleTicks = 10;                         // try another spot shortly
+                return;
+            }
+        }
+        Vec3d c = SlayerBotClient.leashCenter();
+        double ang = Math.random() * Math.PI * 2, rad = SlayerBotClient.leash * (0.3 + Math.random() * 0.55);
+        roamGoal = new Vec3d(c.x + Math.cos(ang) * rad, c.y, c.z + Math.sin(ang) * rad);
+        if (walker != null) walker.stop(client);
+        stopKeys(client);
+        walker = Walker.to(BlockPos.ofFloored(roamGoal), 3.0);
+        state = State.PATHING;
+    }
+
+    /** How many of the slayer's mobs are within this many blocks of you (for the ability's group mode). */
+    public static int nearby(MinecraftClient client, double range) {
+        int n = 0;
+        for (Entity e : client.world.getEntities()) {
+            if (SlayerBotClient.type.mob.test(e) && usable(client, e) && client.player.distanceTo(e) <= range) n++;
+        }
+        return n;
     }
 
     private static String tagOf(Entity e) {

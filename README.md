@@ -5,6 +5,8 @@ Runs SkyBlock slayer quests by itself:
    If that command doesn't open a menu, start the quest yourself and it carries on. On servers like Fakepixel that
    start the next quest by themselves (and have no /slayer), it notices and just waits for the next quest.
 2. Kills the slayer's mobs (zombies, spiders, wolves, endermen or blazes) near where you started, until the boss spawns.
+   To spawn bosses faster it prefers mobs standing in groups and higher-level mobs (read from their nametags),
+   walks around the leash area looking for spawns when nothing is in range, and reacts faster when chaining kills.
 3. Finds **your** boss (the one under "Spawned by: <you>") and kills it; it never attacks other players' bosses or their minions.
 4. On "SLAYER QUEST COMPLETE!" it starts the next quest.
 
@@ -18,8 +20,8 @@ Stand in the slayer area and run `/slb start` (or bind "Start / stop Slayer Bot"
 
 **Ability item:** hold an item with a right-click ability (Hyperion, a healing wand...) and run `/slb ability set`.
 The bot switches to it, right-clicks, and switches back to your weapon, with a short human-like pause each way.
-`/slb ability cooldown <ms>` (default 5000), `when <always|boss|lowhp>` (in fights / only on your boss / when your
-health is below `hp <10-90>`%), `range <2-20>` (how close a target must be), `clear`. It reads the server's
+`/slb ability cooldown <ms>` (default 5000), `when <always|boss|lowhp|group>` (in fights / only on your boss / when your
+health is below `hp <10-90>`% / when `group <2-10>` mobs are close, and on the boss: best for area weapons), `range <2-20>` (how close a target must be), `clear`. It reads the server's
 "on cooldown for Xs" and "not enough mana" messages and waits. It doesn't attack while the ability item is in hand.
 
 **Camera:** modelled on how people actually aim, from motor-control research plus open-source aiming code:

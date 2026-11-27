@@ -137,7 +137,7 @@ public class SlayerBotClient implements ClientModInitializer {
                                 say(MinecraftClient.getInstance(), "Ability item: " + Ability.describe() + ", every " + Ability.cooldownMs
                                         + " ms, within " + Ability.range + " blocks.");
                                 say(MinecraftClient.getInstance(), "/" + root + " ability set (hold the item) | clear | cooldown <ms>"
-                                        + " | when <always|boss|lowhp> | hp <10-90> | range <2-20>");
+                                        + " | when <always|boss|lowhp|group> | group <2-10> | hp <10-90> | range <2-20>");
                                 return 1;
                             })
                             .then(ClientCommandManager.literal("set").executes(c -> {
@@ -162,6 +162,7 @@ public class SlayerBotClient implements ClientModInitializer {
                                         b.suggest("always");
                                         b.suggest("boss");
                                         b.suggest("lowhp");
+                                        b.suggest("group");
                                         return b.buildFuture();
                                     })
                                     .executes(c -> {
@@ -171,12 +172,13 @@ public class SlayerBotClient implements ClientModInitializer {
                                             save();
                                             say(MinecraftClient.getInstance(), "Ability item: " + Ability.describe());
                                         } catch (IllegalArgumentException e) {
-                                            say(MinecraftClient.getInstance(), "Use always, boss or lowhp.");
+                                            say(MinecraftClient.getInstance(), "Use always, boss, lowhp or group.");
                                         }
                                         return 1;
                                     })))
                             .then(setting(root + " ability", "cooldown", 100, 120000, v -> Ability.cooldownMs = v, () -> Ability.cooldownMs + " ms between uses"))
                             .then(setting(root + " ability", "hp", 10, 90, v -> Ability.hpPercent = v, () -> "use below " + Ability.hpPercent + "% health (when lowhp)"))
+                            .then(setting(root + " ability", "group", 2, 10, v -> Ability.group = v, () -> "use when " + Ability.group + "+ mobs are within range (when group)"))
                             .then(setting(root + " ability", "range", 2, 20, v -> Ability.range = v, () -> "use when a target is within " + Ability.range + " blocks")))
                     .then(ClientCommandManager.literal("hud").executes(c -> {
                         hud = !hud;
@@ -332,6 +334,10 @@ public class SlayerBotClient implements ClientModInitializer {
         if (why != null) say(client, why);
     }
 
+    public static Vec3d leashCenter() {
+        return leashCenter;
+    }
+
     public static boolean inLeash(Vec3d pos) {
         if (leashCenter == null) return true;
         double dx = pos.x - leashCenter.x, dz = pos.z - leashCenter.z;
@@ -408,6 +414,7 @@ public class SlayerBotClient implements ClientModInitializer {
                         case "abilityCooldownMs" -> Ability.cooldownMs = Math.max(100, Math.min(120000, Integer.parseInt(v)));
                         case "abilityWhen" -> Ability.when = Ability.When.valueOf(v);
                         case "abilityHp" -> Ability.hpPercent = Math.max(10, Math.min(90, Integer.parseInt(v)));
+                        case "abilityGroup" -> Ability.group = Math.max(2, Math.min(10, Integer.parseInt(v)));
                         case "abilityRange" -> Ability.range = Math.max(2, Math.min(20, Integer.parseInt(v)));
                         default -> { }
                     }
@@ -425,7 +432,7 @@ public class SlayerBotClient implements ClientModInitializer {
                     + "\nturnSpeed=" + turnSpeed + "\npathThreshold=" + pathThreshold + "\nleash=" + leash
                     + "\nautoRestart=" + autoRestart + "\nrightClick=" + rightClick + "\nstartCommand=" + startCommand
                     + "\nhud=" + hud + "\n# right-click ability item (name, without colors; empty = none)\nabilityItem=" + Ability.item
-                    + "\nabilityCooldownMs=" + Ability.cooldownMs + "\n# ALWAYS, BOSS or LOWHP\nabilityWhen=" + Ability.when
+                    + "\nabilityCooldownMs=" + Ability.cooldownMs + "\n# ALWAYS, BOSS, LOWHP or GROUP\nabilityWhen=" + Ability.when + "\nabilityGroup=" + Ability.group
                     + "\nabilityHp=" + Ability.hpPercent + "\nabilityRange=" + Ability.range + "\n", StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOG.warn("Couldn't save settings", e);

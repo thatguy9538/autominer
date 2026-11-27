@@ -20,7 +20,7 @@ public final class Ability {
     private Ability() {
     }
 
-    public enum When { ALWAYS, BOSS, LOWHP }
+    public enum When { ALWAYS, BOSS, LOWHP, GROUP }
 
     // settings (saved by SlayerBotClient)
     /** Name of the item (without colors), "" = no ability item. */
@@ -31,6 +31,8 @@ public final class Ability {
     public static int hpPercent = 50;
     /** Only use it while a target is this close (ALWAYS / BOSS). */
     public static int range = 8;
+    /** For GROUP: use it when at least this many mobs are within range (always on the boss). */
+    public static int group = 3;
 
     private enum Phase { IDLE, SWAPPED, USED }
 
@@ -90,6 +92,7 @@ public final class Ability {
             case LOWHP -> p.getHealth() / p.getMaxHealth() * 100f < hpPercent;
             case BOSS -> bossStage && targetClose(client, p);
             case ALWAYS -> targetClose(client, p);
+            case GROUP -> bossStage ? targetClose(client, p) : Combat.nearby(client, range) >= group;
         };
     }
 
@@ -145,6 +148,7 @@ public final class Ability {
         long left = readyAt - System.currentTimeMillis();
         String w = switch (when) {
             case ALWAYS -> "in fights";
+            case GROUP -> group + "+ mobs close, or the boss";
             case BOSS -> "on the boss";
             case LOWHP -> "below " + hpPercent + "% HP";
         };

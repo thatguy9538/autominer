@@ -45,6 +45,8 @@ public final class HumanAim {
 
     private static Mode mode = Mode.TRACK;
     private static Entity lastTarget = null;
+    /** When we last aimed at a target, to spot kill chains (the next mob right after the last). */
+    private static long lastAimMs = 0;
     private static int waitTicks = 0;
 
     // current flick plan (offsets relative to where the flick started)
@@ -86,7 +88,10 @@ public final class HumanAim {
 
     /** Aim at an entity (a target in a fight). Returns degrees still off. */
     public static float lookAt(ClientPlayerEntity p, Entity target, float maxDegPerSec) {
-        if (target != lastTarget) {
+        boolean chaining = lastTarget != null && System.currentTimeMillis() - lastAimMs < 1200;
+        boolean newTarget = target != lastTarget;
+        lastAimMs = System.currentTimeMillis();
+        if (newTarget) {
             lastTarget = target;
             pvYaw = pvPitch = 0;
             mode = Mode.REACT;
@@ -122,6 +127,11 @@ public final class HumanAim {
         float width = (float) Math.toDegrees(2 * Math.atan(Math.max(0.2, hw) / dist));   // the target's angular size
         float yaw = (float) (Math.toDegrees(Math.atan2(az, ax)) - 90.0);
         float pitch = (float) -Math.toDegrees(Math.atan2(ay, Math.sqrt(ax * ax + az * az)));
+        if (newTarget && chaining) {
+            // chaining kills: the next mob is already in view, so it's anticipated (50-100 ms, not ~200+)
+            float e = (float) Math.hypot(MathHelper.wrapDegrees(yaw - p.getYaw()), pitch - p.getPitch());
+            if (e < 30f) waitTicks = 1 + RNG.nextInt(2);
+        }
         return step(p, yaw, pitch, maxDegPerSec, Math.max(1f, width), true);
     }
 
