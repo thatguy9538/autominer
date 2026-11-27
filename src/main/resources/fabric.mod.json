@@ -4,11 +4,29 @@
   "version": "${version}",
   "name": "Slayer Bot",
   "description": "Runs SkyBlock slayer quests by itself: starts a quest, kills the slayer's mobs, kills your boss and starts the next one. Fighting adapted from V5 (GPL-3.0). /slb",
-  "authors": ["You"],
-  "contributors": ["V5 contributors (combat logic, GPL-3.0)"],
+  "authors": [
+    "You"
+  ],
+  "contributors": [
+    "V5 contributors (combat logic, GPL-3.0)"
+  ],
   "license": "GPL-3.0",
-  "contact": { "sources": "https://github.com/thatguy9538/autominer/tree/slayer" },
+  "contact": {
+    "sources": "https://github.com/thatguy9538/autominer/tree/slayer"
+  },
   "environment": "client",
-  "entrypoints": { "client": ["com.example.slayerbot.SlayerBotClient"] },
-  "depends": { "fabricloader": ">=0.17.0", "minecraft": "~1.21.10", "java": ">=21", "fabric-api": "*" }
+  "entrypoints": {
+    "client": [
+      "com.example.slayerbot.SlayerBotClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": "~1.21.10",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "slayerbot.mixins.json"
+  ]
 }

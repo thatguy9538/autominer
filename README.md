@@ -30,7 +30,8 @@ health is below `hp <10-90>`%), `range <2-20>` (how close a target must be), `cl
 * moving targets get smooth pursuit (follows their motion with a slight lag) with catch-up flicks on top;
 * slow drift, faint tremor and rare tiny hesitations;
 * the aim point wanders inside the hitbox using LiquidBounce's Gaussian aim-point constants (GPL-3.0);
-* every turn is snapped to whole steps of your mouse sensitivity, like real mouse input.
+* the camera glides at your frame rate: each tick's turn is spread over every frame until the next tick, snapped to
+  whole mouse-sensitivity steps and applied through Minecraft's own mouse-look, like real mouse input.
 `turn` sets its top speed (default 400 degrees per second).
 
 **Failsafes:** it stops (with an alarm sound) if you're teleported 8+ blocks or your camera is turned by something else,

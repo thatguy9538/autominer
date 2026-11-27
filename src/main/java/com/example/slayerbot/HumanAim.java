@@ -30,9 +30,9 @@ import java.util.Random;
  * 8. Aim point inside the hitbox from LiquidBounce's Gaussian point processor (GPL-3.0): offsets
  *    drawn from its fitted means / standard deviations and eased toward, with its "lazy" rule
  *    of not moving the aim point for tiny changes.
- * 9. Every turn is snapped to whole steps of your mouse sensitivity, the way a real mouse
- *    turns the camera (Minecraft: f = sens * 0.6 + 0.2, step = f^3 * 8 * 0.15 degrees),
- *    carrying the remainder over so nothing is lost (LiquidBounce's GCD fix).
+ * 9. The turn is handed to Glide, which spreads it across every frame until the next tick and
+ *    snaps each frame's piece to whole mouse-sensitivity steps (Minecraft: f = sens * 0.6 + 0.2,
+ *    step = f^3 * 8 * 0.15 degrees; LiquidBounce's GCD fix), applied through vanilla mouse look.
  */
 public final class HumanAim {
 
@@ -81,6 +81,7 @@ public final class HumanAim {
         histN = 0;
         resYaw = resPitch = 0;
         lazyPoint = null;
+        Glide.clear();
     }
 
     /** Aim at an entity (a target in a fight). Returns degrees still off. */
@@ -298,20 +299,14 @@ public final class HumanAim {
         if (histN < 4) histN++;
     }
 
-    /** Applies a turn snapped to whole mouse-sensitivity steps, keeping the remainder for next time. */
+    /** Hands the turn to Glide, which spreads it over the frames until the next tick (snapped per frame). */
     private static void apply(ClientPlayerEntity p, float dYaw, float dPitch) {
-        float g = sensitivityStep();
-        float ty = dYaw + resYaw, tp = dPitch + resPitch;
-        float sy = Math.round(ty / g) * g, sp = Math.round(tp / g) * g;
-        resYaw = ty - sy;
-        resPitch = tp - sp;
-        p.setYaw(p.getYaw() + sy);
-        p.setPitch(MathHelper.clamp(p.getPitch() + sp, -90f, 90f));
-        p.setHeadYaw(p.getYaw());
+        // keep pitch inside -90..90 counting what's still waiting to be applied
+        Glide.queue(dYaw, dPitch);
     }
 
     /** Degrees one mouse count turns the camera at your sensitivity (vanilla: f^3 * 8 * 0.15). */
-    private static float sensitivityStep() {
+    static float sensitivityStep() {
         double sens = 0.5;
         try {
             sens = MinecraftClient.getInstance().options.getMouseSensitivity().getValue();
